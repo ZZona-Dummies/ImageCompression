@@ -1,0 +1,6 @@
+D:\VISUAL STUDIO\Visual Studio Projects\ImageCompress\ImageCompress\bin\Debug\ImageCompress.exe.config
+D:\VISUAL STUDIO\Visual Studio Projects\ImageCompress\ImageCompress\bin\Debug\ImageCompress.exe
+D:\VISUAL STUDIO\Visual Studio Projects\ImageCompress\ImageCompress\bin\Debug\ImageCompress.pdb
+D:\VISUAL STUDIO\Visual Studio Projects\ImageCompress\ImageCompress\obj\Debug\ImageCompress.csproj.CoreCompileInputs.cache
+D:\VISUAL STUDIO\Visual Studio Projects\ImageCompress\ImageCompress\obj\Debug\ImageCompress.exe
+D:\VISUAL STUDIO\Visual Studio Projects\ImageCompress\ImageCompress\obj\Debug\ImageCompress.pdb
