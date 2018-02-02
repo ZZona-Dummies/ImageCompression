@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ImageCompress
 {
@@ -23,7 +27,7 @@ namespace ImageCompress
         {
             using (MemoryStream mss = new MemoryStream())
             {
-                EncoderParameter qualityParam = new EncoderParameter(Encoder.Quality, quality);
+                EncoderParameter qualityParam = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, quality);
                 ImageCodecInfo imageCodec = ImageCodecInfo.GetImageEncoders().FirstOrDefault(o => o.FormatID == GetFormatGuidFromEnum(imageFormats));
                 EncoderParameters parameters = new EncoderParameters(1);
                 parameters.Param[0] = qualityParam;
@@ -86,14 +90,52 @@ namespace ImageCompress
         /// <typeparam name="T">The type of object to read from the XML.</typeparam>
         /// <param name="filePath">The file path to read the object instance from.</param>
         /// <returns>Returns a new instance of the object read from the binary file.</returns>
-        public static T ReadFromBinaryFile<T>(byte[] arr)
+        public static async Task<T> _Deserialize<T>(this byte[] arr)
         {
             using (MemoryStream stream = new MemoryStream())
             {
                 BinaryFormatter binaryFormatter = new BinaryFormatter();
-                stream.Write(arr, 0, arr.Length);
+                await stream.WriteAsync(arr, 0, arr.Length);
 
                 return (T)binaryFormatter.Deserialize(stream);
+            }
+        }
+
+        public static async Task<object> Deserialize(this byte[] arr)
+        {
+            object obj = await arr._Deserialize<object>();
+            return obj;
+        }
+    }
+
+    public static class CompressionExtensions
+    {
+        public static async Task<IEnumerable<byte>> Zip(this object obj)
+        {
+            byte[] bytes = obj.Serialize();
+
+            using (MemoryStream msi = new MemoryStream(bytes))
+            using (MemoryStream mso = new MemoryStream())
+            {
+                using (var gs = new GZipStream(mso, CompressionMode.Compress))
+                    await msi.CopyToAsync(gs);
+
+                return mso.ToArray().AsEnumerable();
+            }
+        }
+
+        public static async Task<object> Unzip(this byte[] bytes)
+        {
+            using (MemoryStream msi = new MemoryStream(bytes))
+            using (MemoryStream mso = new MemoryStream())
+            {
+                using (var gs = new GZipStream(msi, CompressionMode.Decompress))
+                {
+                    //gs.CopyTo(mso);
+                    await gs.CopyToAsync(mso);
+                }
+
+                return mso.ToArray().Deserialize();
             }
         }
     }
