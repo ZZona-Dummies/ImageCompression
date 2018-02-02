@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -15,13 +14,13 @@ namespace ImageCompress
 {
     public enum ImageFormats
     {
-        None,
-        JPG,
-        PNG,
-        BMP,
-        TIFF,
-        GIF,
-        ICO
+        None = 2,
+        JPG = 4,
+        PNG = 8,
+        BMP = 16,
+        TIFF = 32,
+        GIF = 64,
+        ICO = 128
     }
 
     public static class ImageExtensions
@@ -45,7 +44,7 @@ namespace ImageCompress
                 bmp.Save(mss, imageCodec, parameters);
 
                 if (outputFile)
-                    (await mss.ImageDump(imageFormats)).Dispose();
+                    (await mss.ImageDump(imageFormats, quality)).Dispose();
 
                 return Image.FromStream(mss);
             }
@@ -56,21 +55,21 @@ namespace ImageCompress
             return task.GetAwaiter().GetResult();
         }
 
-        public static async Task<MemoryStream> ToMemoryStream(this Image image, ImageFormat format, bool outputFile = false)
+        public static async Task<MemoryStream> ToMemoryStream(this Image image, ImageFormat format, long quality, bool outputFile = false)
         {
             MemoryStream stream = new MemoryStream();
             image.Save(stream, format);
             stream.Position = 0;
 
             if (outputFile)
-                (await stream.ImageDump(GetEnumFromFormat(format))).Dispose();
+                (await stream.ImageDump(GetEnumFromFormat(format), quality)).Dispose();
 
             return stream;
         }
 
-        public static async Task<FileStream> ImageDump(this MemoryStream mss, ImageFormats imageFormats)
+        public static async Task<FileStream> ImageDump(this MemoryStream mss, ImageFormats imageFormats, long quality)
         {
-            string filePath = GetFileString(imageFormats);
+            string filePath = GetFileString(imageFormats, quality);
 
             if (!Directory.Exists(Path.GetDirectoryName(filePath)))
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath));
@@ -83,11 +82,12 @@ namespace ImageCompress
             }
         }
 
-        private static string GetFileString(ImageFormats imageFormats)
+        private static string GetFileString(ImageFormats imageFormats, long quality)
         {
-            return string.Format("{0}.{1}", Path.Combine(AssemblyPath,
+            return string.Format("{0}_{1}.{2}", Path.Combine(AssemblyPath,
                 imageFormats.ToString(),
                 new DirectoryInfo(AssemblyPath).GetFiles(string.Format("*.{0}", imageFormats.ToString().ToLower()), SearchOption.AllDirectories).Length.ToString("0000")),
+                quality,
                 imageFormats.ToString().ToLower());
         }
 

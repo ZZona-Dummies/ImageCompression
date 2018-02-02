@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace ImageCompress
 {
@@ -12,22 +9,34 @@ namespace ImageCompress
     {
         private static void Main(string[] args)
         {
-            StartAsync().GetAwaiter().GetResult();
-            Console.Read();
-        }
-
-        private static async Task StartAsync()
-        {
             PrintScreen printer = new PrintScreen();
             Image img = printer.CaptureScreen();
 
-            Console.WriteLine("Uncompressed image: " + img.ToMemoryStream(ImageFormat.Png, true).GetAwaiter().GetResult().GetBuffer().Length);
-            Console.WriteLine("Compressed image PNG: " + (await new Bitmap(img).GetCompressedBitmap(ImageFormats.PNG, 100L, true).FromTask().Zip()).Count());
-            Console.WriteLine("Compressed image PNG (50%): " + (await new Bitmap(img).GetCompressedBitmap(ImageFormats.PNG, 50L, true).FromTask().Zip()).Count());
-            Console.WriteLine("Compressed image JPG: " + (await new Bitmap(img).GetCompressedBitmap(ImageFormats.JPG, 100L, true).FromTask().Zip()).Count());
-            //Console.WriteLine("Compressed image JPG: " + (await new Bitmap(img).GetCompressedBitmap(ImageFormats.JPG).Zip()).Count());
-            Console.WriteLine("Compressed image GIF: " + (await new Bitmap(img).GetCompressedBitmap(ImageFormats.GIF, 100L, true).FromTask().Zip()).Count());
-            //Console.WriteLine("Compressed image JPG (50%): " + new Bitmap(img).GetCompressedBitmap(ImageFormats.JPG, 50).Serialize().Length);
+            ImageFormats status = ImageFormats.PNG | ImageFormats.GIF; //ImageFormats.JPG
+
+            ProgramHandler.GetRawLength(img);
+            foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
+                for (int i = 100; i >= 0; i -= 20)
+                    if (status.HasFlag(x))
+                        ProgramHandler.GetCompressedLength(img, x, i);
+
+            Console.Read();
+        }
+    }
+
+    public static class ProgramHandler
+    {
+        public static void GetRawLength(Image img)
+        {
+            Console.WriteLine("Uncompressed image: " + img.ToMemoryStream(ImageFormat.Png, 100, true).GetAwaiter().GetResult().GetBuffer().Length);
+        }
+
+        public static void GetCompressedLength(Image img, ImageFormats imageFormats, long quality = 100L)
+        {
+            //Console.WriteLine("{0} {1}", imageFormats, quality);
+            Console.WriteLine("Compressed image {0} ({1}%): " + new Bitmap(img).GetCompressedBitmap(imageFormats, quality, true).GetAwaiter().GetResult().Zip().GetAwaiter().GetResult().Count(),
+                imageFormats.ToString(),
+                quality);
         }
     }
 }
