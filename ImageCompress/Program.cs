@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -19,7 +21,7 @@ namespace ImageCompress
             PrintScreen printer = new PrintScreen();
             Image img = printer.CaptureScreen();
 
-            Console.WriteLine("Uncompressed image: " + img.Serialize().Length);
+            Console.WriteLine("Uncompressed image: " + img.ToMemoryStream(ImageFormat.Png, true).GetAwaiter().GetResult().GetBuffer().Length);
             Console.WriteLine("Compressed image PNG: " + (await new Bitmap(img).GetCompressedBitmap().Zip()).Count());
             Console.WriteLine("Compressed image PNG (50%): " + (await new Bitmap(img).GetCompressedBitmap(ImageFormats.PNG, 50).Zip()).Count());
             //Console.WriteLine("Compressed image JPG: " + (await new Bitmap(img).GetCompressedBitmap(ImageFormats.JPG).Zip()).Count());
