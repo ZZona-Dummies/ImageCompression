@@ -45,10 +45,15 @@ namespace ImageCompress
                 bmp.Save(mss, imageCodec, parameters);
 
                 if (outputFile)
-                    await mss.ImageDump(imageFormats);
+                    (await mss.ImageDump(imageFormats)).Dispose();
 
                 return Image.FromStream(mss);
             }
+        }
+
+        public static Image FromTask(this Task<Image> task)
+        {
+            return task.GetAwaiter().GetResult();
         }
 
         public static async Task<MemoryStream> ToMemoryStream(this Image image, ImageFormat format, bool outputFile = false)
@@ -58,16 +63,22 @@ namespace ImageCompress
             stream.Position = 0;
 
             if (outputFile)
-                await stream.ImageDump(GetEnumFromFormat(format));
+                (await stream.ImageDump(GetEnumFromFormat(format))).Dispose();
 
             return stream;
         }
 
         public static async Task<FileStream> ImageDump(this MemoryStream mss, ImageFormats imageFormats)
         {
-            using (FileStream file = new FileStream(GetFileString(imageFormats), FileMode.OpenOrCreate, FileAccess.Read))
+            string filePath = GetFileString(imageFormats);
+
+            if (!Directory.Exists(Path.GetDirectoryName(filePath)))
+                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+            using (FileStream file = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.Write))
             {
-                await file.CopyToAsync(mss);
+                byte[] buf = mss.GetBuffer();
+                await file.WriteAsync(buf, 0, buf.Length);
                 return file;
             }
         }
@@ -75,6 +86,7 @@ namespace ImageCompress
         private static string GetFileString(ImageFormats imageFormats)
         {
             return string.Format("{0}.{1}", Path.Combine(AssemblyPath,
+                imageFormats.ToString(),
                 new DirectoryInfo(AssemblyPath).GetFiles(string.Format("*.{0}", imageFormats.ToString().ToLower()), SearchOption.AllDirectories).Length.ToString("0000")),
                 imageFormats.ToString().ToLower());
         }
