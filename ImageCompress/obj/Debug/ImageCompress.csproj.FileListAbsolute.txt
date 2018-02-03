@@ -11,4 +11,3 @@ X:\Visual Studio Projects\ImageCompression\ImageCompress\obj\Debug\ImageCompress
 X:\Visual Studio Projects\ImageCompression\ImageCompress\obj\Debug\ImageCompress.exe
 X:\Visual Studio Projects\ImageCompression\ImageCompress\obj\Debug\ImageCompress.pdb
 X:\Visual Studio Projects\ImageCompression\ImageCompress\obj\Debug\ImageCompress.csprojResolveAssemblyReference.cache
-D:\VISUAL STUDIO\Visual Studio Projects\ImageCompress\ImageCompress\obj\Debug\ImageCompress.csprojResolveAssemblyReference.cache

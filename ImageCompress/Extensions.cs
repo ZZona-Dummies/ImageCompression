@@ -33,21 +33,23 @@ namespace ImageCompress
             }
         }
 
-        public static async Task<Image> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false) //[0-100]
+        public static async Task<MemoryStream> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false) //[0-100]
         {
-            using (MemoryStream mss = new MemoryStream())
-            {
-                EncoderParameter qualityParam = new EncoderParameter(Encoder.Quality, quality);
-                ImageCodecInfo imageCodec = ImageCodecInfo.GetImageEncoders().FirstOrDefault(o => o.FormatID == GetFormatFromEnum(imageFormats).Guid);
-                EncoderParameters parameters = new EncoderParameters(1);
-                parameters.Param[0] = qualityParam;
-                bmp.Save(mss, imageCodec, parameters);
+            //using (MemoryStream mss = new MemoryStream())
+            //{
+            MemoryStream mss = new MemoryStream();
+            EncoderParameter qualityParam = new EncoderParameter(Encoder.Quality, quality);
+            ImageCodecInfo imageCodec = ImageCodecInfo.GetImageEncoders().FirstOrDefault(o => o.FormatID == GetFormatFromEnum(imageFormats).Guid);
+            EncoderParameters parameters = new EncoderParameters(1);
+            parameters.Param[0] = qualityParam;
+            bmp.Save(mss, imageCodec, parameters);
 
-                if (outputFile)
-                    (await mss.ImageDump(imageFormats, quality)).Dispose();
+            if (outputFile)
+                (await mss.ImageDump(imageFormats, quality)).Dispose();
 
-                return Image.FromStream(mss);
-            }
+            //return Image.FromStream(mss);
+            return mss;
+            //}
         }
 
         public static Image FromTask(this Task<Image> task)
@@ -157,6 +159,14 @@ namespace ImageCompress
             }
         }
 
+        public static byte[] SerializeWithMemoryStream<T>(this T obj, MemoryStream stream)
+        {
+            BinaryFormatter binaryFormatter = new BinaryFormatter();
+            binaryFormatter.Serialize(stream, obj);
+
+            return stream.GetBuffer();
+        }
+
         /// <summary>
         /// Reads an object instance from a binary file.
         /// </summary>
@@ -186,6 +196,20 @@ namespace ImageCompress
         public static async Task<IEnumerable<byte>> Zip(this object obj)
         {
             byte[] bytes = obj.Serialize();
+
+            using (MemoryStream msi = new MemoryStream(bytes))
+            using (MemoryStream mso = new MemoryStream())
+            {
+                using (var gs = new GZipStream(mso, CompressionMode.Compress))
+                    await msi.CopyToAsync(gs);
+
+                return mso.ToArray().AsEnumerable();
+            }
+        }
+
+        public static async Task<IEnumerable<byte>> ZipWithMemoryStream(this MemoryStream ms, object obj)
+        {
+            byte[] bytes = obj.SerializeWithMemoryStream(ms);
 
             using (MemoryStream msi = new MemoryStream(bytes))
             using (MemoryStream mso = new MemoryStream())
