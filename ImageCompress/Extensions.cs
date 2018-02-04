@@ -232,8 +232,8 @@ namespace ImageCompress
     }
 
     public static class ByteExtensions
-    {
-        public static byte[][] GetArrDiff(this byte[] or, byte[] newByte)
+    { //Deberiaa crear una clase especifica para Dictionary<int, List<byte>>, no se si generica
+        public static Dictionary<int, List<byte>> GetArrDiff(this byte[] or, byte[] newByte)
         {
             int mlen = Math.Max(or.Length, newByte.Length);
             byte[] small = or.Length != mlen ? or : newByte,
@@ -271,12 +271,7 @@ namespace ImageCompress
 
             ret.ChangeOrAdd(y, offset);
 
-            byte[][] arr = new byte[ret.Keys.Count()][];
-
-            foreach (KeyValuePair<int, List<byte>> r in ret)
-                arr[r.Key] = r.Value.ToArray();
-
-            return arr;
+            return ret;
         }
     }
 
@@ -316,6 +311,67 @@ namespace ImageCompress
             }
 
             return r;
+        }
+
+        public static string DumpDict<TKey, TValue>(this Dictionary<TKey, List<TValue>> dictionary)
+        {
+            string r = "";
+
+            foreach (KeyValuePair<TKey, List<TValue>> kv in dictionary)
+            {
+                if (kv.Value.Count > 0)
+                    r += kv.Key + " => { ";
+                foreach (TValue vs in kv.Value)
+                    r += vs + (!vs.Equals(kv.Value.Last()) ? ", " : "");
+                if (kv.Value.Count > 0)
+                    r += " }\n";
+            }
+
+            return r;
+        }
+
+        public static long CountDict<TKey, TValue>(this Dictionary<TKey, List<TValue>> dictionary)
+        { //Esto lo usare para ver la diff total
+            if (!typeof(TValue).IsNumericType())
+                throw new Exception("Not supported type in CountDict!");
+
+            long l = 0;
+
+            foreach (KeyValuePair<TKey, List<TValue>> kv in dictionary)
+                foreach (TValue vs in kv.Value)
+                    l += vs;
+
+            return l;
+        }
+    }
+
+    public static class TypeExtensions
+    {
+        public static bool IsNumericType<T>(this T o)
+        {
+            return typeof(T).IsNumericType();
+        }
+
+        public static bool IsNumericType(this Type type)
+        {
+            switch (Type.GetTypeCode(type))
+            {
+                case TypeCode.Byte:
+                case TypeCode.SByte:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                case TypeCode.UInt64:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.Int64:
+                case TypeCode.Decimal:
+                case TypeCode.Double:
+                case TypeCode.Single:
+                    return true;
+
+                default:
+                    return false;
+            }
         }
     }
 }

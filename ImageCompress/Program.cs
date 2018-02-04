@@ -9,9 +9,14 @@ namespace ImageCompress
 {
     internal class Program
     {
+        private static byte[] arr1 = { 2, 3, 4, 2, 3, 3, 1, 0, 0, 1, 1 },
+                              arr2 = { 2, 3, 4, 5, 3, 3, 1, 6, 7, 1, 1 };
+
         private static void Main(string[] args)
         {
-            PrintScreen printer = new PrintScreen();
+            Console.WriteLine(arr1.GetArrDiff(arr2));
+
+            /*PrintScreen printer = new PrintScreen();
             Image img = printer.CaptureScreen();
 
             ImageFormats status = ImageFormats.JPG; //ImageFormats.PNG | ImageFormats.GIF |
@@ -20,7 +25,7 @@ namespace ImageCompress
             foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                 for (int i = 100; i >= 0; i -= 5)
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(img, x, i);
+                        ProgramHandler.GetCompressedLength(img, x, i);*/
 
             Console.Read();
         }
@@ -37,7 +42,7 @@ namespace ImageCompress
         private const int SW_HIDE = 0;
         private const int SW_SHOW = 5;
 
-        private static void CommonCheck(byte[] arr)
+        private static void CommonCheck(byte[] arr1, byte[] arr2)
         {
             IntPtr handle = GetConsoleWindow();
 
@@ -47,14 +52,21 @@ namespace ImageCompress
             ChangeWindowVisibility(handle, SW_SHOW);
         }
 
-        public static void GetRawLength(Image img)
+        public static void GetRawLength(Image img1, Image img2)
         { //Maybe is better to have a different file for this
-            using (MemoryStream ms = img.ToMemoryStream(ImageFormat.Png, 100, true).GetAwaiter().GetResult())
+            byte[] arr1, arr2;
+            using (MemoryStream ms = img1.ToMemoryStream(ImageFormat.Png, 100, true).GetAwaiter().GetResult())
             {
-                byte[] arr = ms.GetBuffer();
-                Console.WriteLine("Uncompressed image: " + arr.Length);
-                CommonCheck(arr);
+                arr1 = ms.GetBuffer();
+                Console.WriteLine("Uncompressed image: " + arr1.Length);
             }
+
+            using (MemoryStream ms = img2.ToMemoryStream(ImageFormat.Png, 100, true).GetAwaiter().GetResult())
+                arr2 = ms.GetBuffer();
+
+            CommonCheck(arr1, arr2);
+
+            Console.WriteLine("Uncompressed image (diff): " + arr1.Length);
         }
 
         public static void GetCompressedLength(Image img, ImageFormats imageFormats, long quality = 100L)
