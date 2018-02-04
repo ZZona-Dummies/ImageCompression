@@ -52,7 +52,7 @@ namespace ImageCompress
             ChangeWindowVisibility(handle, SW_SHOW);
         }
 
-        public static void GetRawLength(Image img1, Image img2)
+        public static void GetRawLength(Image img1, Image img2) //Aqui tengo q hacer las imagenes dentro, tomas las capturas cambiando la visibilidad de la imagen
         { //Maybe is better to have a different file for this
             byte[] arr1, arr2;
             using (MemoryStream ms = img1.ToMemoryStream(ImageFormat.Png, 100, true).GetAwaiter().GetResult())
@@ -64,7 +64,7 @@ namespace ImageCompress
             using (MemoryStream ms = img2.ToMemoryStream(ImageFormat.Png, 100, true).GetAwaiter().GetResult())
                 arr2 = ms.GetBuffer();
 
-            CommonCheck(arr1, arr2);
+            CommonCheck(arr1, arr1.GetArrDiff(arr2));
 
             Console.WriteLine("Uncompressed image (diff): " + arr1.Length);
         }
