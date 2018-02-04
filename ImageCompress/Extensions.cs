@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -35,8 +36,6 @@ namespace ImageCompress
 
         public static async Task<MemoryStream> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false) //[0-100]
         {
-            //using (MemoryStream mss = new MemoryStream())
-            //{
             MemoryStream mss = new MemoryStream();
             EncoderParameter qualityParam = new EncoderParameter(Encoder.Quality, quality);
             ImageCodecInfo imageCodec = ImageCodecInfo.GetImageEncoders().FirstOrDefault(o => o.FormatID == GetFormatFromEnum(imageFormats).Guid);
@@ -47,9 +46,7 @@ namespace ImageCompress
             if (outputFile)
                 (await mss.ImageDump(imageFormats, quality)).Dispose();
 
-            //return Image.FromStream(mss);
             return mss;
-            //}
         }
 
         public static Image FromTask(this Task<Image> task)
@@ -227,13 +224,98 @@ namespace ImageCompress
             using (MemoryStream mso = new MemoryStream())
             {
                 using (var gs = new GZipStream(msi, CompressionMode.Decompress))
-                {
-                    //gs.CopyTo(mso);
                     await gs.CopyToAsync(mso);
-                }
 
                 return mso.ToArray().Deserialize();
             }
+        }
+    }
+
+    public static class ByteExtensions
+    {
+        public static byte[][] GetArrDiff(this byte[] or, byte[] newByte)
+        {
+            int mlen = Math.Max(or.Length, newByte.Length);
+            byte[] small = or.Length != mlen ? or : newByte,
+                   big = or.Length == mlen ? or : newByte;
+
+            Dictionary<int, List<byte>> ret = new Dictionary<int, List<byte>>();
+            List<byte> offset = new List<byte>();
+
+            int y = 0;
+            for (int i = 0; i < mlen; ++i) //Esto está mal porque hay q pensar q or.Length != newByte.Length
+            {
+                if (i < small.Length)
+                {
+                    if (small[i] != big[i])
+                    {
+                        if (y == 0) y = i;
+
+                        if (!ret.ContainsKey(y))
+                        {
+                            List<byte> bb = new List<byte>();
+                            bb.Add(newByte[i]);
+                            ret.Add(y, bb);
+                        }
+                        else
+                            ret[y].Add(newByte[i]);
+                    }
+                    else
+                    {
+                        if (y != 0) y = 0;
+                    }
+                }
+                else
+                    offset.Add(big[i]);
+            }
+
+            ret.ChangeOrAdd(y, offset);
+
+            byte[][] arr = new byte[ret.Keys.Count()][];
+
+            foreach (KeyValuePair<int, List<byte>> r in ret)
+                arr[r.Key] = r.Value.ToArray();
+
+            return arr;
+        }
+    }
+
+    public static class DictionaryExtensions
+    {
+        public static bool ChangeOrAdd<TKey, TValue>(this Dictionary<TKey, TValue> dict, TKey key, TValue value)
+        { //True == add; false == change
+            if (!dict.ContainsKey(key))
+            {
+                dict.Add(key, value);
+                return true;
+            }
+            else
+            {
+                dict[key] = value;
+                return false;
+            }
+        }
+    }
+
+    public static class DumpExtensions
+    {
+        public static string DumpArray<T>(this T[][] arr)
+        {
+            string r = "";
+
+            for (int x = 0; x < arr.GetLength(0); ++x)
+            {
+                if (arr[x].Length > 0)
+                    r += x + " => { ";
+                for (int y = 0; y < arr[x].Length; ++y)
+                {
+                    r += arr[x][y] + ", ";
+                }
+                if (arr[x].Length > 0)
+                    r += " }\n";
+            }
+
+            return r;
         }
     }
 }

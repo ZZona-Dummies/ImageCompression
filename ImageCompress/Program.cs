@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace ImageCompress
 {
@@ -13,11 +14,11 @@ namespace ImageCompress
             PrintScreen printer = new PrintScreen();
             Image img = printer.CaptureScreen();
 
-            ImageFormats status = ImageFormats.PNG | ImageFormats.GIF | ImageFormats.JPG;
+            ImageFormats status = ImageFormats.JPG; //ImageFormats.PNG | ImageFormats.GIF |
 
             ProgramHandler.GetRawLength(img);
             foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
-                for (int i = 100; i >= 0; i -= 20)
+                for (int i = 100; i >= 0; i -= 5)
                     if (status.HasFlag(x))
                         ProgramHandler.GetCompressedLength(img, x, i);
 
@@ -27,10 +28,33 @@ namespace ImageCompress
 
     public static class ProgramHandler
     {
-        public static void GetRawLength(Image img)
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool ChangeWindowVisibility(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_HIDE = 0;
+        private const int SW_SHOW = 5;
+
+        private static void CommonCheck(byte[] arr)
         {
+            IntPtr handle = GetConsoleWindow();
+
+            //Aqui tenemos q minimizar la ventana y tomar otra captura y hacer un diff con offset y decir el tamaño q nos hemos ahorrado y volver a maximizar
+            ChangeWindowVisibility(handle, SW_HIDE);
+
+            ChangeWindowVisibility(handle, SW_SHOW);
+        }
+
+        public static void GetRawLength(Image img)
+        { //Maybe is better to have a different file for this
             using (MemoryStream ms = img.ToMemoryStream(ImageFormat.Png, 100, true).GetAwaiter().GetResult())
-                Console.WriteLine("Uncompressed image: " + ms.GetBuffer().Length);
+            {
+                byte[] arr = ms.GetBuffer();
+                Console.WriteLine("Uncompressed image: " + arr.Length);
+                CommonCheck(arr);
+            }
         }
 
         public static void GetCompressedLength(Image img, ImageFormats imageFormats, long quality = 100L)
