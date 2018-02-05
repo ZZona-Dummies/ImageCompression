@@ -135,6 +135,60 @@ namespace ImageCompress
             else
                 return default(ImageFormats);
         }
+
+        public static Bitmap CommonBitmap(Bitmap bmp1, Bitmap bmp2, float sim = 95)
+        {
+            int mwidth = Math.Max(bmp1.Width, bmp2.Width),
+                mheight = Math.Max(bmp1.Height, bmp2.Height);
+
+            Bitmap bigmap = bmp1.Width == mwidth ? bmp1 : bmp2,
+                   smallmap = bmp1.Width != mwidth ? bmp1 : bmp2;
+
+            Color[,] compare = new Color[mwidth, mheight];
+
+            int lx = 0,
+                ly = 0,
+                fx = 0,
+                fy = 0,
+                c = 0;
+
+            // ??? Aqui lo que tengo q hacer es juntar los centros de ambos bitmaps
+            for (int x = 0; x < mwidth; ++x)
+            { // ??? De esto tengo ya 2 casos que no se que hacer muy bien
+                if (x > smallmap.Width) continue;
+                for (int y = 0; y < mheight; ++y)
+                {
+                    if (y > smallmap.Height) continue; //Aqui tengo q skipear
+
+                    if (ColorExtensions.CompareColors(bigmap.GetPixel(x, y), smallmap.GetPixel(x, y)) > sim)
+                    {
+                        ++c;
+                        if (c == 1)
+                        {
+                            fx = x;
+                            fy = y;
+                        }
+                        // Y en el small map hacer la cuenta
+                        compare[x, y] = bmp2.GetPixel(x, y); // Y aqui segun si el bmp2 es el grande o el chico hay q obtener el pixel de una u otra forma
+                        lx = x;
+                        ly = y;
+                    }
+                }
+            }
+
+            Bitmap ret = new Bitmap(lx - fx, ly - fy);
+
+            for (int xx = fx; xx < lx; ++xx)
+                for (int yy = fx; yy < lx; ++yy)
+                {
+                    int x = fx - xx,
+                        y = fy - yy;
+
+                    ret.SetPixel(x, y, compare[x, y]);
+                }
+
+            return ret;
+        }
     }
 
     public static class SerializerExtensions
@@ -438,6 +492,20 @@ namespace ImageCompress
                     ++c;
 
             return c;
+        }
+    }
+
+    public static class ColorExtensions
+    {
+        public static int CompareColors(Color a, Color b)
+        {
+            return 100 * (int)(
+                1.0 - (
+                    Math.Abs(a.R - b.R) +
+                    Math.Abs(a.G - b.G) +
+                    Math.Abs(a.B - b.B)
+                ) / (256.0 * 3)
+            );
         }
     }
 }

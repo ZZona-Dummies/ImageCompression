@@ -94,6 +94,11 @@ namespace ImageCompress
                 using (MemoryStream ms = bmp[i].GetCompressedBitmap(imageFormats, quality, true, i == 1).GetAwaiter().GetResult())
                 {
                     IEnumerable<byte> arr = ms.Zip().GetAwaiter().GetResult();
+                    IEnumerable<byte> carr = null;
+
+                    if (i == 1)
+                        using (MemoryStream mss = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).GetCompressedBitmap(imageFormats, quality, true, i == 1).GetAwaiter().GetResult())
+                            carr = mss.Zip().GetAwaiter().GetResult();
 
                     int c = i == 0 ? arr.Count() : arr.GetArrDiff(firstArr).CountDict();
                     Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
@@ -101,7 +106,7 @@ namespace ImageCompress
                         quality,
                         i > 0 ? string.Format(" (diff | except) (loss {0}%)", (100f - (float)c * 100 / lastC).ToString("F3")) : "",
                         c,
-                        i > 0 ? string.Format(" | {0}", arr.MultisetIntersect(firstArr).Count()) : "");
+                        i > 0 ? string.Format(" | {0}", carr.Count()) : ""); // arr.MultisetIntersect(firstArr).Count()
 
                     if (i == 0) lastC = c;
 
