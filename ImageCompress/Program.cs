@@ -45,13 +45,13 @@ namespace ImageCompress
         private const int SW_SHOW = 5;
 
         private static PrintScreen printer = new PrintScreen();
-        private static Image[] img = new Image[2];
+        private static Bitmap[] bmp = new Bitmap[2];
 
         public static void CreateImages()
         {
             IntPtr handle = GetConsoleWindow();
 
-            img[0] = printer.CaptureScreen();
+            bmp[0] = printer.CaptureScreenToBitmap();
 
             Thread.Sleep(1500);
 
@@ -60,7 +60,7 @@ namespace ImageCompress
 
             Thread.Sleep(100);
 
-            img[1] = printer.CaptureScreen();
+            bmp[1] = printer.CaptureScreenToBitmap();
 
             Thread.Sleep(1500);
 
@@ -71,8 +71,8 @@ namespace ImageCompress
         { //Maybe is better to have a different file for this
             byte[][] arr = new byte[2][];
 
-            for (byte i = 0; i < img.Length; ++i)
-                using (MemoryStream ms = img[i].ToMemoryStream(ImageFormat.Png, 100, true, i == 1).GetAwaiter().GetResult())
+            for (byte i = 0; i < bmp.Length; ++i)
+                using (MemoryStream ms = bmp[i].ToMemoryStream(ImageFormat.Png, 100, true, i == 1).GetAwaiter().GetResult())
                     arr[i] = ms.GetBuffer();
 
             Console.WriteLine("Uncompressed image: {0} | {1}", arr[0].Length, arr[1].Length);
@@ -90,8 +90,8 @@ namespace ImageCompress
             IEnumerable<byte> firstArr = null;
 
             int lastC = 0;
-            for (byte i = 0; i < img.Length; ++i)
-                using (MemoryStream ms = new Bitmap(img[i]).GetCompressedBitmap(imageFormats, quality, true, i == 1).GetAwaiter().GetResult())
+            for (byte i = 0; i < bmp.Length; ++i)
+                using (MemoryStream ms = bmp[i].GetCompressedBitmap(imageFormats, quality, true, i == 1).GetAwaiter().GetResult())
                 {
                     IEnumerable<byte> arr = ms.Zip().GetAwaiter().GetResult();
 

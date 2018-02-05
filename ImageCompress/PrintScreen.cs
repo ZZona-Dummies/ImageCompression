@@ -28,6 +28,23 @@ namespace ImageCompress
             return img;
         }
 
+        public Bitmap CaptureScreenToBitmap()
+        {
+            return CaptureScreenToBitmap(User32.GetDesktopWindow());
+        }
+
+        public Bitmap CaptureScreenToBitmap(IntPtr handle)
+        { // Image : Bitmap
+            IntPtr hBitmap = CaptureWindow(handle);
+
+            // get a .NET image object for it
+            Bitmap img = Bitmap.FromHbitmap(hBitmap);
+            // free up the Bitmap object
+            GDI32.DeleteObject(hBitmap);
+
+            return img;
+        }
+
         /// <summary>
         /// Creates an Image object containing a screen shot of a specific window
         /// </summary>
