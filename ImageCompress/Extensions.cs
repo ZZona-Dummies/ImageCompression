@@ -9,8 +9,6 @@ using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 
-//using PathIO = System.IO.Path;
-
 namespace ImageCompress
 {
     public enum ImageFormats
@@ -34,7 +32,7 @@ namespace ImageCompress
             }
         }
 
-        public static async Task<MemoryStream> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false) //[0-100]
+        public static async Task<MemoryStream> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false, bool diff = false) //[0-100]
         {
             MemoryStream mss = new MemoryStream();
             EncoderParameter qualityParam = new EncoderParameter(Encoder.Quality, quality);
@@ -44,7 +42,7 @@ namespace ImageCompress
             bmp.Save(mss, imageCodec, parameters);
 
             if (outputFile)
-                (await mss.ImageDump(imageFormats, quality)).Dispose();
+                (await mss.ImageDump(imageFormats, quality, diff)).Dispose();
 
             return mss;
         }
@@ -54,21 +52,21 @@ namespace ImageCompress
             return task.GetAwaiter().GetResult();
         }
 
-        public static async Task<MemoryStream> ToMemoryStream(this Image image, ImageFormat format, long quality, bool outputFile = false)
+        public static async Task<MemoryStream> ToMemoryStream(this Image image, ImageFormat format, long quality, bool outputFile = false, bool diff = false)
         {
             MemoryStream stream = new MemoryStream();
             image.Save(stream, format);
             stream.Position = 0;
 
             if (outputFile)
-                (await stream.ImageDump(GetEnumFromFormat(format), quality)).Dispose();
+                (await stream.ImageDump(GetEnumFromFormat(format), quality, diff)).Dispose();
 
             return stream;
         }
 
-        public static async Task<FileStream> ImageDump(this MemoryStream mss, ImageFormats imageFormats, long quality)
+        public static async Task<FileStream> ImageDump(this MemoryStream mss, ImageFormats imageFormats, long quality, bool diff)
         {
-            string filePath = GetFileString(imageFormats, quality);
+            string filePath = GetFileString(imageFormats, quality, diff);
 
             if (!Directory.Exists(Path.GetDirectoryName(filePath)))
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath));
@@ -81,12 +79,13 @@ namespace ImageCompress
             }
         }
 
-        private static string GetFileString(ImageFormats imageFormats, long quality)
+        private static string GetFileString(ImageFormats imageFormats, long quality, bool diff)
         {
-            return string.Format("{0}_{1}.{2}", Path.Combine(AssemblyPath,
+            return string.Format("{0}_{1}{2}.{3}", Path.Combine(AssemblyPath,
                 imageFormats.ToString(),
                 new DirectoryInfo(AssemblyPath).GetFiles(string.Format("*.{0}", imageFormats.ToString().ToLower()), SearchOption.AllDirectories).Length.ToString("0000")),
                 quality,
+                diff ? "_diff" : "",
                 imageFormats.ToString().ToLower());
         }
 
@@ -232,7 +231,12 @@ namespace ImageCompress
     }
 
     public static class ByteExtensions
-    { //Deberiaa crear una clase especifica para Dictionary<int, List<byte>>, no se si generica
+    { //Deberia crear una clase especifica para Dictionary<int, List<byte>>, no se si generica
+        public static Dictionary<int, List<byte>> GetArrDiff(this IEnumerable<byte> or, IEnumerable<byte> newByte)
+        { //Optimize this
+            return or.ToArray().GetArrDiff(newByte.ToArray());
+        }
+
         public static Dictionary<int, List<byte>> GetArrDiff(this byte[] or, byte[] newByte)
         {
             int mlen = Math.Max(or.Length, newByte.Length);
