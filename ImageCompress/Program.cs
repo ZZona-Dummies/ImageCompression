@@ -78,7 +78,10 @@ namespace ImageCompress
             Console.WriteLine("Uncompressed image: {0} | {1}", arr[0].Length, arr[1].Length);
 
             Dictionary<int, List<byte>> diff = arr[0].GetArrDiff(arr[1]);
-            if (dump) File.WriteAllText(Path.Combine(PathExtensions.AssemblyPath, "raw_diff.txt"), diff.DumpDict(true));
+
+            if (dump)
+                File.WriteAllText(Path.Combine(PathExtensions.AssemblyPath, "raw_diff.txt"), diff.DumpDict(true));
+
             Console.WriteLine("Uncompressed image (diff): " + diff.CountDict());
         }
 
@@ -93,10 +96,12 @@ namespace ImageCompress
                     IEnumerable<byte> arr = ms.Zip().GetAwaiter().GetResult();
 
                     int c = i == 0 ? arr.Count() : arr.GetArrDiff(firstArr).CountDict();
-                    Console.WriteLine("Compressed image {0} ({1}%){2}: " + c,
+                    Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
                         imageFormats.ToString(),
                         quality,
-                        i > 0 ? string.Format(" (diff) (loss {0}%)", (100f - (float)c * 100 / lastC).ToString("F3")) : "");
+                        i > 0 ? string.Format(" (diff | except) (loss {0}%)", (100f - (float)c * 100 / lastC).ToString("F3")) : "",
+                        c,
+                        i > 0 ? string.Format(" | {0}", arr.MultisetIntersect(firstArr).Count()) : "");
 
                     if (i == 0) lastC = c;
 
