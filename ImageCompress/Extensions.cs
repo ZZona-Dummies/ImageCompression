@@ -136,16 +136,17 @@ namespace ImageCompress
                 return default(ImageFormats);
         }
 
-        public static Bitmap CommonBitmap(Bitmap bmp1, Bitmap bmp2, float sim = 95)
-        {
+        public static IEnumerable<IEnumerable<ColorData>> CommonBitmap(Bitmap bmp1, Bitmap bmp2, float sim = 95)
+        { //La cuestion esq aqui se puede hacer secuencia y teniendo nada mas q la anchura se puede hacer el resto, creo... ???
             int mwidth = Math.Max(bmp1.Width, bmp2.Width),
                 mheight = Math.Max(bmp1.Height, bmp2.Height);
 
             Bitmap bigmap = bmp1.Width == mwidth ? bmp1 : bmp2,
                    smallmap = bmp1.Width != mwidth ? bmp1 : bmp2;
 
-            Color[,] compare = new Color[mwidth, mheight];
+            //Color[,] compare = new Color[mwidth, mheight];
 
+            //Not neccesary ???
             int lx = 0,
                 ly = 0,
                 fx = 0,
@@ -156,38 +157,45 @@ namespace ImageCompress
             for (int x = 0; x < mwidth; ++x)
             { // ??? De esto tengo ya 2 casos que no se que hacer muy bien
                 if (x > smallmap.Width) continue;
-                for (int y = 0; y < mheight; ++y)
-                {
-                    if (y > smallmap.Height) continue; //Aqui tengo q skipear
-
-                    if (ColorExtensions.CompareColors(bigmap.GetPixel(x, y), smallmap.GetPixel(x, y)) > sim)
-                    {
-                        ++c;
-                        if (c == 1)
-                        {
-                            fx = x;
-                            fy = y;
-                        }
-                        // Y en el small map hacer la cuenta
-                        compare[x, y] = bmp2.GetPixel(x, y); // Y aqui segun si el bmp2 es el grande o el chico hay q obtener el pixel de una u otra forma
-                        lx = x;
-                        ly = y;
-                    }
-                }
+                yield return VerticalMap(bmp1, bmp2, smallmap, bigmap, x, mheight);
             }
 
-            Bitmap ret = new Bitmap(lx - fx, ly - fy);
+            //Bitmap ret = new Bitmap(lx - fx, ly - fy);
 
-            for (int xx = fx; xx < lx; ++xx)
-                for (int yy = fx; yy < lx; ++yy)
+            //for (int xx = 0; xx < lx - fx; ++xx)
+            //    for (int yy = 0; yy < ly - fy; ++yy)
+            //        ret.SetPixel(xx, yy, compare[xx, yy]);
+
+            //return ret;
+        }
+
+        private static IEnumerable<ColorData> VerticalMap(Bitmap bmp1, Bitmap bmp2, Bitmap smallmap, Bitmap bigmap, int x, int mheight) // ref int c, ref int fx, ref int fy, ref int lx, ref int ly)
+        {
+            for (int y = 0; y < mheight; ++y)
+            {
+                if (y > smallmap.Height) continue; //Aqui tengo q skipear
+
+                //if (ColorExtensions.CompareColors(bigmap.GetPixel(x, y), smallmap.GetPixel(x, y)) > sim)
+                if (bigmap.GetPixel(x, y) != smallmap.GetPixel(x, y))
                 {
-                    int x = fx - xx,
-                        y = fy - yy;
-
-                    ret.SetPixel(x, y, compare[x, y]);
+                    /*++c;
+                    if (c == 1)
+                    {
+                        fx = x;
+                        fy = y;
+                    }*/
+                    // Y en el small map hacer la cuenta
+                    //lx = x;
+                    //ly = y;
+                    //return SolveVertical(bmp2, x, y); // Y aqui segun si el bmp2 es el grande o el chico hay q obtener el pixel de una u otra forma
+                    yield return new ColorData(x, y, bmp2.GetPixel(x, y));
                 }
+            }
+        }
 
-            return ret;
+        private static IEnumerable<Color> SolveVertical(Bitmap bmp2, int x, int y)
+        {
+            yield return bmp2.GetPixel(x, y);
         }
     }
 
@@ -252,6 +260,18 @@ namespace ImageCompress
             byte[] bytes = obj.Serialize();
 
             using (MemoryStream msi = new MemoryStream(bytes))
+            using (MemoryStream mso = new MemoryStream())
+            {
+                using (var gs = new GZipStream(mso, CompressionMode.Compress))
+                    await msi.CopyToAsync(gs);
+
+                return mso.ToArray().AsEnumerable();
+            }
+        }
+
+        public static async Task<IEnumerable<byte>> ZipBytes(this IEnumerable<byte> bytes)
+        {
+            using (MemoryStream msi = new MemoryStream(bytes.ToArray()))
             using (MemoryStream mso = new MemoryStream())
             {
                 using (var gs = new GZipStream(mso, CompressionMode.Compress))
@@ -506,6 +526,19 @@ namespace ImageCompress
                     Math.Abs(a.B - b.B)
                 ) / (256.0 * 3)
             );
+        }
+    }
+
+    public class ColorData
+    {
+        public int x, y;
+        public Color c;
+
+        public ColorData(int x, int y, Color c)
+        {
+            this.x = x;
+            this.y = y;
+            this.c = c;
         }
     }
 }
