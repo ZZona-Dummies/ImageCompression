@@ -7,13 +7,25 @@ namespace ImageCompress
 {
     public class PrintScreen
     {
+        public Image CaptureScreen()
+        {
+            return CaptureScreen(User32.GetDesktopWindow());
+        }
+
         /// <summary>
         /// Creates an Image object containing a screen shot of the entire desktop
         /// </summary>
         /// <returns></returns>
-        public Image CaptureScreen()
-        {
-            return CaptureWindow(User32.GetDesktopWindow());
+        public Image CaptureScreen(IntPtr handle)
+        { // Image : Bitmap
+            IntPtr hBitmap = CaptureWindow(handle);
+
+            // get a .NET image object for it
+            Image img = Image.FromHbitmap(hBitmap);
+            // free up the Bitmap object
+            GDI32.DeleteObject(hBitmap);
+
+            return img;
         }
 
         /// <summary>
@@ -21,7 +33,7 @@ namespace ImageCompress
         /// </summary>
         /// <param name="handle">The handle to the window. (In windows forms, this is obtained by the Handle property)</param>
         /// <returns></returns>
-        public Image CaptureWindow(IntPtr handle)
+        public IntPtr CaptureWindow(IntPtr handle)
         {
             // get te hDC of the target window
             IntPtr hdcSrc = User32.GetWindowDC(handle);
@@ -45,12 +57,7 @@ namespace ImageCompress
             GDI32.DeleteDC(hdcDest);
             User32.ReleaseDC(handle, hdcSrc);
 
-            // get a .NET image object for it
-            Image img = Image.FromHbitmap(hBitmap);
-            // free up the Bitmap object
-            GDI32.DeleteObject(hBitmap);
-
-            return img;
+            return hBitmap;
         }
 
         /// <summary>
@@ -61,7 +68,7 @@ namespace ImageCompress
         /// <param name="format"></param>
         public void CaptureWindowToFile(IntPtr handle, string filename, ImageFormat format)
         {
-            Image img = CaptureWindow(handle);
+            Image img = CaptureScreen(handle);
             img.Save(filename, format);
         }
 
