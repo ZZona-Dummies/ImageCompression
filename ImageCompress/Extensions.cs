@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 
@@ -36,7 +37,7 @@ namespace ImageCompress
 
     public static class ImageExtensions
     {
-        public static async Task<MemoryStream> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false, bool diff = false) //[0-100]
+        public static async Task<MemoryStream> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false, string suffix = "") //[0-100]
         {
             MemoryStream mss = new MemoryStream();
             EncoderParameter qualityParam = new EncoderParameter(Encoder.Quality, quality);
@@ -46,7 +47,7 @@ namespace ImageCompress
             bmp.Save(mss, imageCodec, parameters);
 
             if (outputFile)
-                (await mss.ImageDump(imageFormats, quality, diff)).Dispose();
+                (await mss.ImageDump(imageFormats, quality, suffix)).Dispose();
 
             return mss;
         }
@@ -56,21 +57,21 @@ namespace ImageCompress
             return task.GetAwaiter().GetResult();
         }
 
-        public static async Task<MemoryStream> ToMemoryStream(this Image image, ImageFormat format, long quality, bool outputFile = false, bool diff = false)
+        public static async Task<MemoryStream> ToMemoryStream(this Image image, ImageFormat format, long quality, bool outputFile = false, string suffix = "")
         {
             MemoryStream stream = new MemoryStream();
             image.Save(stream, format);
             stream.Position = 0;
 
             if (outputFile)
-                (await stream.ImageDump(GetEnumFromFormat(format), quality, diff)).Dispose();
+                (await stream.ImageDump(GetEnumFromFormat(format), quality, suffix)).Dispose();
 
             return stream;
         }
 
-        public static async Task<FileStream> ImageDump(this MemoryStream mss, ImageFormats imageFormats, long quality, bool diff)
+        public static async Task<FileStream> ImageDump(this MemoryStream mss, ImageFormats imageFormats, long quality, string suffix)
         {
-            string filePath = GetFileString(imageFormats, quality, diff);
+            string filePath = GetFileString(imageFormats, quality, suffix);
 
             if (!Directory.Exists(Path.GetDirectoryName(filePath)))
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath));
@@ -83,13 +84,13 @@ namespace ImageCompress
             }
         }
 
-        private static string GetFileString(ImageFormats imageFormats, long quality, bool diff)
+        private static string GetFileString(ImageFormats imageFormats, long quality, string suffix)
         {
             return string.Format("{0}_{1}{2}.{3}", Path.Combine(PathExtensions.AssemblyPath,
                 imageFormats.ToString(),
                 new DirectoryInfo(PathExtensions.AssemblyPath).GetFiles(string.Format("*.{0}", imageFormats.ToString().ToLower()), SearchOption.AllDirectories).Length.ToString("0000")),
                 quality,
-                diff ? "_diff" : "",
+                suffix,
                 imageFormats.ToString().ToLower());
         }
 
@@ -190,6 +191,173 @@ namespace ImageCompress
                     //return SolveVertical(bmp2, x, y); // Y aqui segun si el bmp2 es el grande o el chico hay q obtener el pixel de una u otra forma
                     yield return new ColorData(x, y, bmp2.GetPixel(x, y));
                 }
+            }
+        }
+
+        public static Bitmap UnsafeCompare(Bitmap bitmapA, Bitmap bitmapB, int height)
+        {
+            if ((bitmapA == null) != (bitmapB == null)) throw new Exception("Null bitmap passed!");
+            if (bitmapA.Size != bitmapB.Size) throw new Exception("Different sizes between bitmap A & B!");
+
+            Rectangle bounds = new Rectangle(0, 0, bitmapA.Width, bitmapA.Height);
+            BitmapData bmpDataA = bitmapA.LockBits(bounds, ImageLockMode.ReadWrite, bitmapA.PixelFormat),
+                       bmpDataB = bitmapB.LockBits(bounds, ImageLockMode.ReadWrite, bitmapB.PixelFormat);
+
+            int npixels = height * bmpDataA.Stride / 4, i = 0;
+            unsafe
+            {
+                int* pPixelsA = (int*)bmpDataA.Scan0.ToPointer();
+                int* pPixelsB = (int*)bmpDataB.Scan0.ToPointer();
+
+                for (; i < npixels; ++i)
+                    if (pPixelsA[i] == pPixelsB[i])
+                        pPixelsB[i] = Color.Transparent.ToArgb();
+            }
+            bitmapA.UnlockBits(bmpDataA);
+            bitmapB.UnlockBits(bmpDataB);
+
+            Console.WriteLine("I: " + i);
+
+            return bitmapB;
+        }
+
+        public static Bitmap TrimBitmap(this Bitmap source)
+        {
+            Rectangle srcRect = default(Rectangle);
+            BitmapData data = null;
+            try
+            {
+                data = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                byte[] buffer = new byte[data.Height * data.Stride];
+                Marshal.Copy(data.Scan0, buffer, 0, buffer.Length);
+                int xMin = int.MaxValue;
+                int xMax = 0;
+                int yMin = int.MaxValue;
+                int yMax = 0;
+                for (int y = 0; y < data.Height; y++)
+                    for (int x = 0; x < data.Width; x++)
+                    {
+                        byte alpha = buffer[y * data.Stride + 4 * x + 3];
+                        if (alpha != 0)
+                        {
+                            if (x < xMin) xMin = x;
+                            if (x > xMax) xMax = x;
+                            if (y < yMin) yMin = y;
+                            if (y > yMax) yMax = y;
+                        }
+                    }
+
+                if (xMax < xMin || yMax < yMin)
+                {
+                    // Image is empty...
+                    return null;
+                }
+                srcRect = Rectangle.FromLTRB(xMin, yMin, xMax, yMax);
+            }
+            finally
+            {
+                if (data != null)
+                    source.UnlockBits(data);
+            }
+
+            Bitmap dest = new Bitmap(srcRect.Width, srcRect.Height);
+            Rectangle destRect = new Rectangle(0, 0, srcRect.Width, srcRect.Height);
+            using (Graphics graphics = Graphics.FromImage(dest))
+            {
+                graphics.DrawImage(source, destRect, srcRect, GraphicsUnit.Pixel);
+            }
+            return dest;
+        }
+
+        public static Bitmap Crop(this Bitmap bmp)
+        {
+            int w = bmp.Width;
+            int h = bmp.Height;
+
+            Func<int, bool> allWhiteRow = row =>
+            {
+                for (int i = 0; i < w; ++i)
+                    if (bmp.GetPixel(i, row).A == 0)
+                        return false;
+                return true;
+            };
+
+            Func<int, bool> allWhiteColumn = col =>
+            {
+                for (int i = 0; i < h; ++i)
+                    if (bmp.GetPixel(col, i).A == 0)
+                        return false;
+                return true;
+            };
+
+            int topmost = 0;
+            for (int row = 0; row < h; ++row)
+            {
+                if (allWhiteRow(row))
+                    topmost = row;
+                else break;
+            }
+
+            int bottommost = 0;
+            for (int row = h - 1; row >= 0; --row)
+            {
+                if (allWhiteRow(row))
+                    bottommost = row;
+                else break;
+            }
+
+            int leftmost = 0, rightmost = 0;
+            for (int col = 0; col < w; ++col)
+            {
+                if (allWhiteColumn(col))
+                    leftmost = col;
+                else
+                    break;
+            }
+
+            for (int col = w - 1; col >= 0; --col)
+            {
+                if (allWhiteColumn(col))
+                    rightmost = col;
+                else
+                    break;
+            }
+
+            if (rightmost == 0) rightmost = w; // As reached left
+            if (bottommost == 0) bottommost = h; // As reached top.
+
+            int croppedWidth = rightmost - leftmost;
+            int croppedHeight = bottommost - topmost;
+
+            if (croppedWidth == 0) // No border on left or right
+            {
+                leftmost = 0;
+                croppedWidth = w;
+            }
+
+            if (croppedHeight == 0) // No border on top or bottom
+            {
+                topmost = 0;
+                croppedHeight = h;
+            }
+
+            try
+            {
+                var target = new Bitmap(croppedWidth, croppedHeight);
+                using (Graphics g = Graphics.FromImage(target))
+                {
+                    g.DrawImage(bmp,
+                      new RectangleF(0, 0, croppedWidth, croppedHeight),
+                      new RectangleF(leftmost, topmost, croppedWidth, croppedHeight),
+                      GraphicsUnit.Pixel);
+                }
+                return target;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                  string.Format("Values are topmost={0} btm={1} left={2} right={3} croppedWidth={4} croppedHeight={5}", topmost, bottommost, leftmost, rightmost, croppedWidth, croppedHeight),
+                  ex);
             }
         }
 

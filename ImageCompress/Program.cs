@@ -27,7 +27,7 @@ namespace ImageCompress
             foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                 for (int i = 100; i >= 0; i -= 5)
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, i);
+                        ProgramHandler.GetCompressedLength(x, i, true);
 
             Console.Read();
         }
@@ -72,7 +72,7 @@ namespace ImageCompress
             byte[][] arr = new byte[2][];
 
             for (byte i = 0; i < bmp.Length; ++i)
-                using (MemoryStream ms = bmp[i].ToMemoryStream(ImageFormat.Png, 100, true, i == 1).GetAwaiter().GetResult())
+                using (MemoryStream ms = bmp[i].ToMemoryStream(ImageFormat.Png, 100, true, "_raw").GetAwaiter().GetResult())
                     arr[i] = ms.GetBuffer();
 
             Console.WriteLine("Uncompressed image: {0} | {1}", arr[0].Length, arr[1].Length);
@@ -85,28 +85,30 @@ namespace ImageCompress
             Console.WriteLine("Uncompressed image (diff): " + diff.CountDict());
         }
 
-        public static void GetCompressedLength(ImageFormats imageFormats, long quality = 100L, bool longConvert = false)
+        public static void GetCompressedLength(ImageFormats imageFormats, long quality = 100L, bool altConvert = false)
         {
             IEnumerable<byte> firstArr = null;
 
             int lastC = 0;
             for (byte i = 0; i < bmp.Length; ++i)
-                using (MemoryStream ms = bmp[i].GetCompressedBitmap(imageFormats, quality, true, i == 1).GetAwaiter().GetResult())
+                using (MemoryStream ms = bmp[i].GetCompressedBitmap(imageFormats, quality, true, i == 1 ? "_diff" : "").GetAwaiter().GetResult())
                 {
-                    IEnumerable<byte> arr = ms.Zip().GetAwaiter().GetResult();
-                    //IEnumerable<byte> carr = null;
-                    int ccount = 0;
+                    IEnumerable<byte> arr = ms.ZipWithMemoryStream(Image.FromStream(ms)).GetAwaiter().GetResult();
+                    IEnumerable<byte> carr = null;
+                    //int ccount = 0;
 
-                    if (i == 1 && longConvert)
-                        ccount = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).SelectMany(x => x).Count() * 3; //carr = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).Zip().GetAwaiter().GetResult();
+                    if (i == 1 && altConvert)
+                        using (MemoryStream mss = ImageExtensions.UnsafeCompare(bmp[0], bmp[1], bmp[0].Height).GetCompressedBitmap(imageFormats, quality, true, i == 1 ? "_unsafe" : "").GetAwaiter().GetResult())
+                            carr = mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
+                    //ccount = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).SelectMany(x => x).Count() * 3; //carr = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).Zip().GetAwaiter().GetResult();
 
                     int c = i == 0 ? arr.Count() : arr.GetArrDiff(firstArr).CountDict();
                     Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
                         imageFormats.ToString(),
                         quality,
-                        i > 0 ? string.Format(" (diff | except) (loss {0}% | {1}%)", (100f - (float)c * 100 / lastC).ToString("F3"), (100f - (float)ccount * 100 / lastC).ToString("F3")) : "",
+                        i > 0 ? string.Format(" (diff | except) (loss {0}% | {1}%)", (100f - (float)c * 100 / lastC).ToString("F3"), (100f - (float)carr.Count() * 100 / lastC).ToString("F3")) : "",
                         c,
-                        i > 0 ? string.Format(" | {0}", ccount) : ""); // arr.MultisetIntersect(firstArr).Count()
+                        i > 0 ? string.Format(" | {0}", carr.Count()) : ""); // arr.MultisetIntersect(firstArr).Count()
 
                     if (i == 0) lastC = c;
 
