@@ -18,23 +18,16 @@ namespace ImageCompress
         {
             //Console.WriteLine(arr1.GetArrDiff(arr2));
 
-            //Console.Read();
-
             ProgramHandler.CreateImages();
 
             ImageFormats status = ImageFormats.JPG; //ImageFormats.PNG | ImageFormats.GIF |
 
             ProgramHandler.GetRawLength();
 
-            //Console.Read();
-
             foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                 for (int i = 100; i >= 0; i -= 5)
                     if (status.HasFlag(x))
-                    {
                         ProgramHandler.GetCompressedLength(x, i);
-                        //Console.Read();
-                    }
 
             Console.Read();
         }
@@ -74,26 +67,26 @@ namespace ImageCompress
             ShowWindow(handle, SW_SHOW);
         }
 
-        public static void GetRawLength() //Aqui tengo q hacer las imagenes dentro, tomas las capturas cambiando la visibilidad de la imagen
+        public static void GetRawLength(bool dump = false) //Aqui tengo q hacer las imagenes dentro, tomas las capturas cambiando la visibilidad de la imagen
         { //Maybe is better to have a different file for this
             byte[][] arr = new byte[2][];
 
             for (byte i = 0; i < img.Length; ++i)
                 using (MemoryStream ms = img[i].ToMemoryStream(ImageFormat.Png, 100, true, i == 1).GetAwaiter().GetResult())
-                {
                     arr[i] = ms.GetBuffer();
 
-                    if (i == 0)
-                        Console.WriteLine("Uncompressed image: " + arr[0].Length);
-                    else
-                        Console.WriteLine("Uncompressed image (diff): " + arr[0].GetArrDiff(arr[1]).CountDict());
-                }
+            Console.WriteLine("Uncompressed image: {0} | {1}", arr[0].Length, arr[1].Length);
+
+            Dictionary<int, List<byte>> diff = arr[0].GetArrDiff(arr[1]);
+            if (dump) File.WriteAllText(Path.Combine(PathExtensions.AssemblyPath, "raw_diff.txt"), diff.DumpDict(true));
+            Console.WriteLine("Uncompressed image (diff): " + diff.CountDict());
         }
 
         public static void GetCompressedLength(ImageFormats imageFormats, long quality = 100L)
         {
             IEnumerable<byte> firstArr = null;
 
+            int lastC = 0;
             for (byte i = 0; i < img.Length; ++i)
                 using (MemoryStream ms = new Bitmap(img[i]).GetCompressedBitmap(imageFormats, quality, true, i == 1).GetAwaiter().GetResult())
                 {
@@ -103,7 +96,9 @@ namespace ImageCompress
                     Console.WriteLine("Compressed image {0} ({1}%){2}: " + c,
                         imageFormats.ToString(),
                         quality,
-                        i > 0 ? " (diff)" : "");
+                        i > 0 ? string.Format(" (diff) (loss {0}%)", (100f - (float)c * 100 / lastC).ToString("F3")) : "");
+
+                    if (i == 0) lastC = c;
 
                     firstArr = arr;
                 }

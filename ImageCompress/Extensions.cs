@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -22,16 +23,19 @@ namespace ImageCompress
         ICO = 128
     }
 
-    public static class ImageExtensions
+    public static class PathExtensions
     {
-        private static string AssemblyPath
+        public static string AssemblyPath
         {
             get
             {
                 return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             }
         }
+    }
 
+    public static class ImageExtensions
+    {
         public static async Task<MemoryStream> GetCompressedBitmap(this Bitmap bmp, ImageFormats imageFormats = ImageFormats.PNG, long quality = 100L, bool outputFile = false, bool diff = false) //[0-100]
         {
             MemoryStream mss = new MemoryStream();
@@ -81,9 +85,9 @@ namespace ImageCompress
 
         private static string GetFileString(ImageFormats imageFormats, long quality, bool diff)
         {
-            return string.Format("{0}_{1}{2}.{3}", Path.Combine(AssemblyPath,
+            return string.Format("{0}_{1}{2}.{3}", Path.Combine(PathExtensions.AssemblyPath,
                 imageFormats.ToString(),
-                new DirectoryInfo(AssemblyPath).GetFiles(string.Format("*.{0}", imageFormats.ToString().ToLower()), SearchOption.AllDirectories).Length.ToString("0000")),
+                new DirectoryInfo(PathExtensions.AssemblyPath).GetFiles(string.Format("*.{0}", imageFormats.ToString().ToLower()), SearchOption.AllDirectories).Length.ToString("0000")),
                 quality,
                 diff ? "_diff" : "",
                 imageFormats.ToString().ToLower());
@@ -270,7 +274,11 @@ namespace ImageCompress
                     }
                 }
                 else
-                    offset.Add(big[i]);
+                { //Realmente esto no hace ni falta
+                    //if (or.Length < newByte.Length) break;
+                    //offset.Add(big[i]);
+                    break;
+                }
             }
 
             ret.ChangeOrAdd(y, offset);
@@ -306,10 +314,10 @@ namespace ImageCompress
             {
                 if (arr[x].Length > 0)
                     r += x + " => { ";
+
                 for (int y = 0; y < arr[x].Length; ++y)
-                {
                     r += arr[x][y] + ", ";
-                }
+
                 if (arr[x].Length > 0)
                     r += " }\n";
             }
@@ -317,19 +325,49 @@ namespace ImageCompress
             return r;
         }
 
-        public static string DumpDict<TKey, TValue>(this Dictionary<TKey, List<TValue>> dictionary)
+        public static string DumpDict<TKey, TValue>(this Dictionary<TKey, List<TValue>> dictionary, bool debug = false)
         {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+
             string r = "";
+
+            int i = 0, j = 0,
+                t = dictionary.Values.Sum(x => x.Count);
+
+            if (debug) Console.WriteLine();
 
             foreach (KeyValuePair<TKey, List<TValue>> kv in dictionary)
             {
                 if (kv.Value.Count > 0)
                     r += kv.Key + " => { ";
+
+                int k = kv.Value.Count;
+
                 foreach (TValue vs in kv.Value)
-                    r += vs + (!vs.Equals(kv.Value.Last()) ? ", " : "");
+                {
+                    ++j;
+                    r += vs + (j != k ? ", " : "");
+
+                    if (debug && i % 10000 == 0)
+                        Console.WriteLine("{0} => ({1} / {2}): {3} ... {4} s",
+                            (i * 100 / (float)t).ToString("F2") + "%",
+                            i,
+                            t,
+                            r.Length,
+                            (sw.ElapsedMilliseconds / 1000f).ToString("F2"));
+
+                    if (k == j) j = 0;
+
+                    ++i;
+                }
                 if (kv.Value.Count > 0)
                     r += " }\n";
             }
+
+            if (debug) Console.WriteLine();
+
+            sw.Stop();
 
             return r;
         }
