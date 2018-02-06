@@ -1,6 +1,7 @@
 ﻿using SevenZip.Compression.LZMA;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -53,6 +54,24 @@ namespace ImageCompress
         private static Bitmap[] bmp = new Bitmap[2];
 
         private static int lastC = 0;
+        private static Stopwatch sw = new Stopwatch();
+
+        private static long diffellapsed,
+                            zipbytesellapsed,
+                            deflateellapsed,
+                            lzmaellapsed,
+                            sharpellapsed,
+                            LastEllapsed;
+
+        private static long CurrentEllapsed
+        {
+            get
+            {
+                long cur = sw.ElapsedMilliseconds;
+                LastEllapsed = cur;
+                return LastEllapsed;
+            }
+        }
 
         public static void CreateImages()
         {
@@ -113,11 +132,29 @@ namespace ImageCompress
 
                         IEnumerable<byte> or = ImageExtensions.SafeCompareBytes(jpg ? (Bitmap)Image.FromStream(ms) : bmp[0], jpg ? (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult()) : bmp[1]);
 
+                        sw.Start();
+
                         diff = arr.GetArrDiff(firstArr).CountDict();
+
+                        diffellapsed = GetEllapsedTime();
+
                         zipbytes = or.ZipBytes().GetAwaiter().GetResult();
+
+                        zipbytesellapsed = GetEllapsedTime();
+
                         deflate = or.DeflateCompress().GetAwaiter().GetResult();
+
+                        deflateellapsed = GetEllapsedTime();
+
                         lzma = or.Compress();
+
+                        lzmaellapsed = GetEllapsedTime();
+
                         sharp = or.CreateToMemoryStream("sharp", quality, true);
+
+                        sharpellapsed = GetEllapsedTime();
+
+                        sw.Stop();
                     }
 
                     //Only compare
@@ -136,11 +173,11 @@ namespace ImageCompress
                             lzmacount = lzma.Count(),
                             sharpcount = sharp.Count();
 
-                        Console.WriteLine("   Diff     => Size: {0}; Loss {1}", diff, GetLossPercentage(diff));
-                        Console.WriteLine("   ZipBytes => Size: {0}; Loss {1}", zipbytescount, GetLossPercentage(zipbytescount));
-                        Console.WriteLine("   Deflate  => Size: {0}; Loss {1}", deflatecount, GetLossPercentage(deflatecount));
-                        Console.WriteLine("   LZMA     => Size: {0}; Loss {1}", lzmacount, GetLossPercentage(lzmacount));
-                        Console.WriteLine("   SHARP    => Size: {0}; Loss {1}", sharpcount, GetLossPercentage(sharpcount));
+                        Console.WriteLine("   Diff     => Size: {0}; Loss {1}; Ellapsed: {2}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed));
+                        Console.WriteLine("   ZipBytes => Size: {0}; Loss {1}; Ellapsed: {2}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed));
+                        Console.WriteLine("   Deflate  => Size: {0}; Loss {1}; Ellapsed: {2}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed));
+                        Console.WriteLine("   LZMA     => Size: {0}; Loss {1}; Ellapsed: {2}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed));
+                        Console.WriteLine("   SHARP    => Size: {0}; Loss {1}; Ellapsed: {2}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed));
                         Console.WriteLine();
                     }
                     /*Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
@@ -159,6 +196,21 @@ namespace ImageCompress
         private static string GetLossPercentage(float c)
         {
             return (100f - c * 100 / lastC).ToString("F3") + "%";
+        }
+
+        private static void RegisterEllapsedTime()
+        {
+            LastEllapsed = sw.ElapsedMilliseconds;
+        }
+
+        private static long GetEllapsedTime()
+        {
+            return Math.Abs(LastEllapsed - CurrentEllapsed);
+        }
+
+        private static string GetEllapsedString(long s)
+        {
+            return (s / 1000f).ToString("F3") + "s";
         }
     }
 }
