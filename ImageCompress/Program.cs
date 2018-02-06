@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace ImageCompress
 {
@@ -157,9 +158,13 @@ namespace ImageCompress
 
                         diffellapsed = GetEllapsedTime();
 
-                        zipbytes = or.ZipBytes().GetAwaiter().GetResult();
+                        Task<IEnumerable<byte>> zr = or.ZipBytes();
 
                         zipbytesellapsed = GetEllapsedTime();
+
+                        zipbytes = zr.GetAwaiter().GetResult();
+
+                        Console.WriteLine("Ellapsed ZipBytes GetAwaiter time: {0} ms\n", GetEllapsedTime());
 
                         deflate = or.DeflateCompress().GetAwaiter().GetResult();
 
@@ -174,12 +179,23 @@ namespace ImageCompress
                         sharpellapsed = GetEllapsedTime();
 
                         //byte[] codeclz4 = null;
-                        lz4 = LZ4Codec.Encode(or.ToArray(), 0, or.Count());
+
+                        int cc = or.Count();
+
+                        Console.WriteLine("\nEllapsed count time: {0} ms", GetEllapsedTime());
+
+                        byte[] orarr = or.ToArray();
+
+                        Console.WriteLine("\nEllapsed to arr time: {0} ms\n", GetEllapsedTime());
+
+                        lz4 = LZ4Codec.Encode(orarr, 0, cc); //Not efficient
                         //LZ4Codec.Wrap(or.ToArray(), 0, or.Count()).AsEnumerable();
 
                         lz4ellapsed = GetEllapsedTime();
 
                         sw.Stop();
+
+                        GC.Collect();
                     }
 
                     //Only compare
