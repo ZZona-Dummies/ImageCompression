@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SevenZip.Compression.LZMA;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -19,10 +20,19 @@ namespace ImageCompress
 
             ProgramHandler.GetRawLength();
 
-            foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
-                for (int i = 100; i >= 0; i -= 5)
+            bool onlyOne = true;
+
+            if (!onlyOne)
+            {
+                foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
+                    for (int i = 100; i >= 0; i -= 5)
+                        if (status.HasFlag(x))
+                            ProgramHandler.GetCompressedLength(x, i, true);
+            }
+            else
+                foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, i, true);
+                        ProgramHandler.GetCompressedLength(x, 50, true);
 
             Console.Read();
         }
@@ -41,6 +51,8 @@ namespace ImageCompress
 
         private static PrintScreen printer = new PrintScreen();
         private static Bitmap[] bmp = new Bitmap[2];
+
+        private static int lastC = 0;
 
         public static void CreateImages()
         {
@@ -84,18 +96,26 @@ namespace ImageCompress
         {
             IEnumerable<byte> firstArr = null;
 
-            int lastC = 0;
             for (byte i = 0; i < bmp.Length; ++i)
                 using (MemoryStream ms = bmp[i].GetCompressedBitmap(imageFormats, quality, true, i == 1 ? "_diff" : "").GetAwaiter().GetResult())
                 {
-                    IEnumerable<byte> arr = ms.ZipWithMemoryStream(Image.FromStream(ms)).GetAwaiter().GetResult();
-                    IEnumerable<byte> carr = null;
+                    IEnumerable<byte> arr = ms.ZipWithMemoryStream(Image.FromStream(ms)).GetAwaiter().GetResult(),
+                                      zipbytes = null,
+                                      deflate = null,
+                                      lzma = null;
+                    int diff = 0;
 
                     if (i == 1 && altConvert)
                     {
-                        bool jpg = true,
-                             usingmem = false; //Implementar usingmem para usar lo de más abajo
-                        carr = ImageExtensions.SafeCompareBytes(jpg ? (Bitmap)Image.FromStream(ms) : bmp[0], jpg ? (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult()) : bmp[1]).ZipBytes().GetAwaiter().GetResult();
+                        bool jpg = false;
+                        //usingmem = false; //Implementar usingmem para usar lo de más abajo
+
+                        IEnumerable<byte> or = ImageExtensions.SafeCompareBytes(jpg ? (Bitmap)Image.FromStream(ms) : bmp[0], jpg ? (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult()) : bmp[1]);
+
+                        diff = arr.GetArrDiff(firstArr).CountDict();
+                        zipbytes = or.ZipBytes().GetAwaiter().GetResult();
+                        deflate = or.DeflateCompress().GetAwaiter().GetResult();
+                        lzma = or.Compress();
                     }
 
                     //Only compare
@@ -103,18 +123,38 @@ namespace ImageCompress
                     //    carr = mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult(); //mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
                     //ccount = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).SelectMany(x => x).Count() * 3; //carr = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).Zip().GetAwaiter().GetResult();
 
-                    int c = i == 0 ? arr.Count() : arr.GetArrDiff(firstArr).CountDict();
-                    Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
+                    int c = i == 0 ? arr.Count() : 0; // arr.GetArrDiff(firstArr).CountDict();
+
+                    if (i == 0)
+                        Console.WriteLine("Compressed image {0} format with {1}% quality", imageFormats, quality);
+                    else
+                    {
+                        int zipbytescount = zipbytes.Count(),
+                            deflatecount = deflate.Count(),
+                            lzmacount = lzma.Count();
+
+                        Console.WriteLine("   Diff     => Size: {0}; Loss {1}", diff, GetLossPercentage(diff));
+                        Console.WriteLine("   ZipBytes => Size: {0}; Loss {1}", zipbytescount, GetLossPercentage(zipbytescount));
+                        Console.WriteLine("   Deflate  => Size: {0}; Loss {1}", deflatecount, GetLossPercentage(deflatecount));
+                        Console.WriteLine("   LZMA     => Size: {0}; Loss {1}", lzmacount, GetLossPercentage(lzmacount));
+                        Console.WriteLine();
+                    }
+                    /*Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
                         imageFormats.ToString(),
                         quality,
                         i > 0 ? string.Format(" (diff | compare) (loss {0}% | {1}%)", (100f - (float)c * 100 / lastC).ToString("F3"), altConvert ? ((100f - (float)carr.Count() * 100 / lastC).ToString("F3")) : "") : "",
                         c,
-                        i > 0 ? string.Format(" | {0}", altConvert ? carr.Count() : 0) : ""); // arr.MultisetIntersect(firstArr).Count()
+                        i > 0 ? string.Format(" | {0}", altConvert ? carr.Count() : 0) : ""); // arr.MultisetIntersect(firstArr).Count()*/
 
                     if (i == 0) lastC = c;
 
                     firstArr = arr;
                 }
+        }
+
+        private static string GetLossPercentage(float c)
+        {
+            return (100f - c * 100 / lastC).ToString("F3") + "%";
         }
     }
 }

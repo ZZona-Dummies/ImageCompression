@@ -214,12 +214,13 @@ namespace ImageCompress
                             // Get start index of the specified pixel
                             i = (y * lockBitmap2.RowSize) + (x * cCount);
 
+                            //there we have a problem because we are losing position references
                             if (cCount == 4) // For 32 bpp get Red, Green, Blue and Alpha
                             {
+                                yield return lockBitmap2.Pixels[i + 3]; //Alpha first
                                 yield return lockBitmap2.Pixels[i];
                                 yield return lockBitmap2.Pixels[i + 1];
                                 yield return lockBitmap2.Pixels[i + 2];
-                                yield return lockBitmap2.Pixels[i + 3];
                             }
                             else if (cCount == 3) // For 24 bpp get Red, Green and Blue
                             {
@@ -230,6 +231,11 @@ namespace ImageCompress
                             else if (cCount == 1)
                                 // For 8 bpp get color value (Red, Green and Blue values are the same)
                                 yield return lockBitmap2.Pixels[i];
+                        }
+                        else
+                        {
+                            if (cCount == 4)
+                                yield return 0;
                         }
             }
             finally
@@ -341,6 +347,27 @@ namespace ImageCompress
                     await msi.CopyToAsync(gs);
 
                 return mso.ToArray().AsEnumerable();
+            }
+        }
+
+        public static async Task<IEnumerable<byte>> DeflateCompress(this IEnumerable<byte> data)
+        {
+            using (MemoryStream output = new MemoryStream())
+            {
+                using (DeflateStream dstream = new DeflateStream(output, CompressionLevel.Optimal))
+                    await dstream.WriteAsync(data.ToArray(), 0, data.Count());
+                return output.ToArray().AsEnumerable();
+            }
+        }
+
+        public static async Task<IEnumerable<byte>> DeflateDecompress(this IEnumerable<byte> data)
+        {
+            using (MemoryStream input = new MemoryStream(data.ToArray()))
+            using (MemoryStream output = new MemoryStream())
+            using (DeflateStream dstream = new DeflateStream(input, CompressionMode.Decompress))
+            {
+                await dstream.WriteAsync(data.ToArray(), 0, data.Count());
+                return output.ToArray().AsEnumerable();
             }
         }
 
