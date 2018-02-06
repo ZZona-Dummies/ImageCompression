@@ -154,11 +154,11 @@ namespace ImageCompress
             LockBitmap lockBitmap1 = new LockBitmap(bmp1),
                        lockBitmap2 = new LockBitmap(ret);
 
-            int c = 0,
+            /*int c = 0,
                 fx = 0,
                 fy = 0,
                 lx = 0,
-                ly = 0;
+                ly = 0;*/
 
             try
             {
@@ -169,15 +169,15 @@ namespace ImageCompress
                     for (int x = 0; x < lockBitmap2.Width; x++)
                         if (lockBitmap1.GetPixel(x, y) == lockBitmap2.GetPixel(x, y))
                         {
-                            ++c;
+                            /*++c;
                             if (c == 1)
                             {
                                 fx = x;
                                 fy = y;
-                            }
+                            }*/
                             lockBitmap2.SetPixel(x, y, Color.Transparent);
-                            lx = x;
-                            ly = y;
+                            //lx = x;
+                            //ly = y;
                         }
             }
             finally
@@ -187,6 +187,56 @@ namespace ImageCompress
             }
 
             return lockBitmap2;
+        }
+
+        public static IEnumerable<byte> SafeCompareBytes(Bitmap bmp1, Bitmap bmp2)
+        {
+            if ((bmp1 == null) != (bmp2 == null)) throw new Exception("Null bitmap passed!");
+            if (bmp1.Size != bmp2.Size) throw new Exception("Different sizes between bitmap A & B!");
+
+            Bitmap ret = bmp2.Clone(new Rectangle(0, 0, bmp2.Width, bmp2.Height), bmp2.PixelFormat);
+            LockBitmap lockBitmap1 = new LockBitmap(bmp1),
+                       lockBitmap2 = new LockBitmap(ret);
+
+            try
+            {
+                lockBitmap1.LockBits();
+                lockBitmap2.LockBits();
+
+                int cCount = 0, i = 0;
+                for (int y = 0; y < lockBitmap1.Height; y++)
+                    for (int x = 0; x < lockBitmap2.Width; x++)
+                        if (lockBitmap1.GetPixel(x, y) != lockBitmap2.GetPixel(x, y))
+                        {
+                            // Get color components count
+                            cCount = lockBitmap2.Depth / 8;
+
+                            // Get start index of the specified pixel
+                            i = (y * lockBitmap2.RowSize) + (x * cCount);
+
+                            if (cCount == 4) // For 32 bpp get Red, Green, Blue and Alpha
+                            {
+                                yield return lockBitmap2.Pixels[i];
+                                yield return lockBitmap2.Pixels[i + 1];
+                                yield return lockBitmap2.Pixels[i + 2];
+                                yield return lockBitmap2.Pixels[i + 3];
+                            }
+                            else if (cCount == 3) // For 24 bpp get Red, Green and Blue
+                            {
+                                yield return lockBitmap2.Pixels[i];
+                                yield return lockBitmap2.Pixels[i + 1];
+                                yield return lockBitmap2.Pixels[i + 2];
+                            }
+                            else if (cCount == 1)
+                                // For 8 bpp get color value (Red, Green and Blue values are the same)
+                                yield return lockBitmap2.Pixels[i];
+                        }
+            }
+            finally
+            {
+                lockBitmap1.UnlockBits();
+                lockBitmap2.UnlockBits();
+            }
         }
 
         public static Bitmap SafeCompareTrimmer(Bitmap ret, Rectangle r)

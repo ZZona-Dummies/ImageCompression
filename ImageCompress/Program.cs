@@ -92,8 +92,11 @@ namespace ImageCompress
                     IEnumerable<byte> carr = null;
 
                     if (i == 1 && altConvert)
-                        //(Bitmap)Image.FromStream(ms), (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult())
-                        carr = ImageExtensions.SafeCompare(bmp[0], bmp[1]).Pixels.ZipBytes().GetAwaiter().GetResult();
+                    {
+                        bool jpg = true,
+                             usingmem = false; //Implementar usingmem para usar lo de más abajo
+                        carr = ImageExtensions.SafeCompareBytes(jpg ? (Bitmap)Image.FromStream(ms) : bmp[0], jpg ? (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult()) : bmp[1]).ZipBytes().GetAwaiter().GetResult();
+                    }
 
                     //Only compare
                     //using (MemoryStream mss = ImageExtensions.SafeCompare(bmp[0], bmp[1], true).GetCompressedBitmap(imageFormats, quality, true, "_compare").GetAwaiter().GetResult())
