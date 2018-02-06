@@ -1,4 +1,5 @@
-﻿using SevenZip.Compression.LZMA;
+﻿using LZ4;
+using SevenZip.Compression.LZMA;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -33,7 +34,7 @@ namespace ImageCompress
             else
                 foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, 0, true);
+                        ProgramHandler.GetCompressedLength(x, 50, true);
 
             Console.Read();
         }
@@ -61,6 +62,7 @@ namespace ImageCompress
                             deflateellapsed,
                             lzmaellapsed,
                             sharpellapsed,
+                            lz4ellapsed,
                             LastEllapsed;
 
         private static long CurrentEllapsed
@@ -131,7 +133,8 @@ namespace ImageCompress
                                       zipbytes = null,
                                       deflate = null,
                                       lzma = null,
-                                      sharp = null;
+                                      sharp = null,
+                                      lz4 = null;
 
                     Console.WriteLine("ZipWithMemoryStream: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
                     Console.WriteLine();
@@ -170,6 +173,12 @@ namespace ImageCompress
 
                         sharpellapsed = GetEllapsedTime();
 
+                        //byte[] codeclz4 = null;
+                        lz4 = LZ4Codec.Encode(or.ToArray(), 0, or.Count());
+                        //LZ4Codec.Wrap(or.ToArray(), 0, or.Count()).AsEnumerable();
+
+                        lz4ellapsed = GetEllapsedTime();
+
                         sw.Stop();
                     }
 
@@ -187,13 +196,15 @@ namespace ImageCompress
                         int zipbytescount = zipbytes.Count(),
                             deflatecount = deflate.Count(),
                             lzmacount = lzma.Count(),
-                            sharpcount = sharp.Count();
+                            sharpcount = sharp.Count(),
+                            lz4count = lz4.Count();
 
                         Console.WriteLine("   Diff     => Size: {0}; Loss: {1}; Ellapsed: {2}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed));
                         Console.WriteLine("   ZipBytes => Size: {0}; Loss: {1}; Ellapsed: {2}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed));
                         Console.WriteLine("   Deflate  => Size: {0}; Loss: {1}; Ellapsed: {2}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed));
                         Console.WriteLine("   LZMA     => Size: {0}; Loss: {1}; Ellapsed: {2}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed));
                         Console.WriteLine("   SHARP    => Size: {0}; Loss: {1}; Ellapsed: {2}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed));
+                        Console.WriteLine("   LZ4      => Size: {0}; Loss: {1}; Ellapsed: {2}", lz4count, GetLossPercentage(lz4count), GetEllapsedString(lz4ellapsed));
                         Console.WriteLine();
                     }
 
