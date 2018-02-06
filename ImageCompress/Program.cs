@@ -97,9 +97,10 @@ namespace ImageCompress
                     IEnumerable<byte> carr = null;
                     //int ccount = 0;
 
-                    if (i == 1 && altConvert)
-                        using (MemoryStream mss = ImageExtensions.UnsafeCompare(bmp[0], bmp[1], bmp[0].Height).GetCompressedBitmap(imageFormats, quality, true, i == 1 ? "_unsafe" : "").GetAwaiter().GetResult())
-                            carr = mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
+                    if (i == 1 && altConvert) //true, i == 1 ? "_unsafe" : ""
+                                              //using (MemoryStream mss = )
+                                              //(Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult())
+                        carr = ImageExtensions.SafeCompare(bmp[0], (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult())).Zip().GetAwaiter().GetResult(); //mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
                     //ccount = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).SelectMany(x => x).Count() * 3; //carr = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).Zip().GetAwaiter().GetResult();
 
                     int c = i == 0 ? arr.Count() : arr.GetArrDiff(firstArr).CountDict();

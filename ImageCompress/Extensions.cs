@@ -194,7 +194,34 @@ namespace ImageCompress
             }
         }
 
-        public static Bitmap UnsafeCompare(Bitmap bitmapA, Bitmap bitmapB, int height)
+        public static Bitmap SafeCompare(Bitmap bmp1, Bitmap bmp2)
+        {
+            if ((bmp1 == null) != (bmp2 == null)) throw new Exception("Null bitmap passed!");
+            if (bmp1.Size != bmp2.Size) throw new Exception("Different sizes between bitmap A & B!");
+
+            LockBitmap lockBitmap1 = new LockBitmap(bmp1),
+                       lockBitmap2 = new LockBitmap(bmp2);
+            try
+            {
+                lockBitmap1.LockBits();
+                lockBitmap2.LockBits();
+
+                Color compareClr = Color.FromArgb(255, 255, 255, 255);
+                for (int y = 0; y < lockBitmap1.Height; y++)
+                    for (int x = 0; x < lockBitmap2.Width; x++)
+                        if (lockBitmap1.GetPixel(x, y) == lockBitmap2.GetPixel(x, y))
+                            lockBitmap2.SetPixel(x, y, Color.Transparent);
+            }
+            finally
+            {
+                lockBitmap1.UnlockBits();
+                lockBitmap2.UnlockBits();
+            }
+
+            return bmp2;
+        }
+
+        /*public static Bitmap UnsafeCompare(Bitmap bitmapA, Bitmap bitmapB, int height)
         {
             if ((bitmapA == null) != (bitmapB == null)) throw new Exception("Null bitmap passed!");
             if (bitmapA.Size != bitmapB.Size) throw new Exception("Different sizes between bitmap A & B!");
@@ -203,7 +230,7 @@ namespace ImageCompress
             BitmapData bmpDataA = bitmapA.LockBits(bounds, ImageLockMode.ReadWrite, bitmapA.PixelFormat),
                        bmpDataB = bitmapB.LockBits(bounds, ImageLockMode.ReadWrite, bitmapB.PixelFormat);
 
-            int npixels = height * bmpDataA.Stride / 4, i = 0;
+            int npixels = Math.Abs(height * bmpDataA.Stride) / 4, i = 0;
             unsafe
             {
                 int* pPixelsA = (int*)bmpDataA.Scan0.ToPointer();
@@ -216,10 +243,10 @@ namespace ImageCompress
             bitmapA.UnlockBits(bmpDataA);
             bitmapB.UnlockBits(bmpDataB);
 
-            Console.WriteLine("I: " + i);
+            Console.WriteLine("I: {0}; N: {1}", i, npixels);
 
             return bitmapB;
-        }
+        }*/
 
         public static Bitmap TrimBitmap(this Bitmap source)
         {
