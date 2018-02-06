@@ -25,7 +25,7 @@ namespace ImageCompress
             using (MemoryStream outputMemStream = new MemoryStream())
             using (ZipOutputStream zipStream = new ZipOutputStream(outputMemStream))
             {
-                if (debug) Console.WriteLine("Sharzip Level: " + GetLevelFromQuality(quality));
+                if (debug) Console.WriteLine("SharpZip Level: " + GetLevelFromQuality(quality));
                 zipStream.SetLevel(GetLevelFromQuality(quality)); //0-9, 9 being the highest level of compression
 
                 ZipEntry newEntry = new ZipEntry(zipEntryName);

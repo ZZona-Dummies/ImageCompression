@@ -32,7 +32,7 @@ namespace ImageCompress
             else
                 foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, 5, true);
+                        ProgramHandler.GetCompressedLength(x, 50, true);
 
             Console.Read();
         }
