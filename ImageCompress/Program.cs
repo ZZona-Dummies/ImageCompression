@@ -32,7 +32,7 @@ namespace ImageCompress
             else
                 foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, 50, true);
+                        ProgramHandler.GetCompressedLength(x, 5, true);
 
             Console.Read();
         }
@@ -102,7 +102,8 @@ namespace ImageCompress
                     IEnumerable<byte> arr = ms.ZipWithMemoryStream(Image.FromStream(ms)).GetAwaiter().GetResult(),
                                       zipbytes = null,
                                       deflate = null,
-                                      lzma = null;
+                                      lzma = null,
+                                      sharp = null;
                     int diff = 0;
 
                     if (i == 1 && altConvert)
@@ -116,6 +117,7 @@ namespace ImageCompress
                         zipbytes = or.ZipBytes().GetAwaiter().GetResult();
                         deflate = or.DeflateCompress().GetAwaiter().GetResult();
                         lzma = or.Compress();
+                        sharp = or.CreateToMemoryStream("sharp", quality, true);
                     }
 
                     //Only compare
@@ -131,12 +133,14 @@ namespace ImageCompress
                     {
                         int zipbytescount = zipbytes.Count(),
                             deflatecount = deflate.Count(),
-                            lzmacount = lzma.Count();
+                            lzmacount = lzma.Count(),
+                            sharpcount = sharp.Count();
 
                         Console.WriteLine("   Diff     => Size: {0}; Loss {1}", diff, GetLossPercentage(diff));
                         Console.WriteLine("   ZipBytes => Size: {0}; Loss {1}", zipbytescount, GetLossPercentage(zipbytescount));
                         Console.WriteLine("   Deflate  => Size: {0}; Loss {1}", deflatecount, GetLossPercentage(deflatecount));
                         Console.WriteLine("   LZMA     => Size: {0}; Loss {1}", lzmacount, GetLossPercentage(lzmacount));
+                        Console.WriteLine("   SHARP    => Size: {0}; Loss {1}", sharpcount, GetLossPercentage(sharpcount));
                         Console.WriteLine();
                     }
                     /*Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",

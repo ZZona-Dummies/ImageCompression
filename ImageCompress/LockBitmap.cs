@@ -43,13 +43,11 @@ namespace ImageCompress
                 Rectangle rect = new Rectangle(0, 0, Width, Height);
 
                 // get source bitmap pixel format size
-                Depth = System.Drawing.Bitmap.GetPixelFormatSize(source.PixelFormat);
+                Depth = Image.GetPixelFormatSize(source.PixelFormat);
 
                 // Check if bpp (Bits Per Pixel) is 8, 24, or 32
                 if (Depth != 8 && Depth != 24 && Depth != 32)
-                {
                     throw new ArgumentException("Only 8, 24 and 32 bpp images are supported.");
-                }
 
                 // Lock bitmap and return bitmap data
                 bitmapData = source.LockBits(rect, ImageLockMode.ReadWrite,
@@ -65,13 +63,11 @@ namespace ImageCompress
                 //Marshal.Copy(Iptr, Pixels, 0, Pixels.Length);
                 // Solution for positive and negative Stride:
                 for (int y = 0; y < Height; y++)
-                {
                     Marshal.Copy(IntPtr.Add(Iptr, y * bitmapData.Stride),
                         Pixels, y * RowSize,
                         RowSize);
-                }
             }
-            catch (Exception)
+            catch
             {
                 throw;
             }
