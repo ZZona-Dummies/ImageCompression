@@ -84,6 +84,15 @@ namespace ImageCompress
             }
         }
 
+        public static Bitmap ToFile(this Bitmap map, ImageFormats imageFormats, long quality, string suffix)
+        {
+            using (MemoryStream ms = ((Image)map).ToMemoryStream(GetFormatFromEnum(imageFormats), quality, true, suffix).GetAwaiter().GetResult())
+            {
+            }
+
+            return map;
+        }
+
         private static string GetFileString(ImageFormats imageFormats, long quality, string suffix)
         {
             return string.Format("{0}_{1}{2}.{3}", Path.Combine(PathExtensions.AssemblyPath,
