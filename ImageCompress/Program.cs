@@ -11,13 +11,8 @@ namespace ImageCompress
 {
     internal class Program
     {
-        //private static byte[] arr1 = { 2, 3, 4, 2, 3, 3, 1, 0, 0, 1, 1 },
-        //                      arr2 = { 2, 3, 4, 5, 3, 3, 1, 6, 7, 1, 1 };
-
         private static void Main(string[] args)
         {
-            //Console.WriteLine(arr1.GetArrDiff(arr2));
-
             ProgramHandler.CreateImages();
 
             ImageFormats status = ImageFormats.JPG; //ImageFormats.PNG | ImageFormats.GIF |
@@ -53,16 +48,16 @@ namespace ImageCompress
 
             bmp[0] = printer.CaptureScreenToBitmap();
 
-            Thread.Sleep(1500);
+            Thread.Sleep(100);
 
             //Aqui tenemos q minimizar la ventana y tomar otra captura y hacer un diff con offset y decir el tamaño q nos hemos ahorrado y volver a maximizar
             ShowWindow(handle, SW_HIDE);
 
-            Thread.Sleep(100);
+            Thread.Sleep(200);
 
             bmp[1] = printer.CaptureScreenToBitmap();
 
-            Thread.Sleep(1500);
+            Thread.Sleep(100);
 
             ShowWindow(handle, SW_SHOW);
         }
@@ -95,21 +90,23 @@ namespace ImageCompress
                 {
                     IEnumerable<byte> arr = ms.ZipWithMemoryStream(Image.FromStream(ms)).GetAwaiter().GetResult();
                     IEnumerable<byte> carr = null;
-                    //int ccount = 0;
 
-                    if (i == 1 && altConvert) //true, i == 1 ? "_unsafe" : ""
-                                              //using (MemoryStream mss = )
-                                              //(Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult())
-                        carr = ImageExtensions.SafeCompare(bmp[0], (Bitmap)Image.FromStream(ms), true).ToFile(imageFormats, quality, "_compare").Zip().GetAwaiter().GetResult(); //mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
+                    if (i == 1 && altConvert)
+                        //(Bitmap)Image.FromStream(ms), (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult())
+                        carr = ImageExtensions.SafeCompare(bmp[0], bmp[1]).Pixels.ZipBytes().GetAwaiter().GetResult();
+
+                    //Only compare
+                    //using (MemoryStream mss = ImageExtensions.SafeCompare(bmp[0], bmp[1], true).GetCompressedBitmap(imageFormats, quality, true, "_compare").GetAwaiter().GetResult())
+                    //    carr = mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult(); //mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
                     //ccount = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).SelectMany(x => x).Count() * 3; //carr = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).Zip().GetAwaiter().GetResult();
 
                     int c = i == 0 ? arr.Count() : arr.GetArrDiff(firstArr).CountDict();
                     Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
                         imageFormats.ToString(),
                         quality,
-                        i > 0 ? string.Format(" (diff | except) (loss {0}% | {1}%)", (100f - (float)c * 100 / lastC).ToString("F3"), (100f - (float)carr.Count() * 100 / lastC).ToString("F3")) : "",
+                        i > 0 ? string.Format(" (diff | compare) (loss {0}% | {1}%)", (100f - (float)c * 100 / lastC).ToString("F3"), altConvert ? ((100f - (float)carr.Count() * 100 / lastC).ToString("F3")) : "") : "",
                         c,
-                        i > 0 ? string.Format(" | {0}", carr.Count()) : ""); // arr.MultisetIntersect(firstArr).Count()
+                        i > 0 ? string.Format(" | {0}", altConvert ? carr.Count() : 0) : ""); // arr.MultisetIntersect(firstArr).Count()
 
                     if (i == 0) lastC = c;
 

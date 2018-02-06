@@ -7,7 +7,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 
@@ -146,13 +145,14 @@ namespace ImageCompress
                 return default(ImageFormats);
         }
 
-        public static Bitmap SafeCompare(Bitmap bmp1, Bitmap bmp2, bool trim)
+        public static LockBitmap SafeCompare(Bitmap bmp1, Bitmap bmp2)
         {
             if ((bmp1 == null) != (bmp2 == null)) throw new Exception("Null bitmap passed!");
             if (bmp1.Size != bmp2.Size) throw new Exception("Different sizes between bitmap A & B!");
 
+            Bitmap ret = bmp2.Clone(new Rectangle(0, 0, bmp2.Width, bmp2.Height), bmp2.PixelFormat);
             LockBitmap lockBitmap1 = new LockBitmap(bmp1),
-                       lockBitmap2 = new LockBitmap(bmp2);
+                       lockBitmap2 = new LockBitmap(ret);
 
             int c = 0,
                 fx = 0,
@@ -186,70 +186,24 @@ namespace ImageCompress
                 lockBitmap2.UnlockBits();
             }
 
-            if (trim)
-            {
-                try
-                {
-                    Rectangle r = Rectangle.FromLTRB(fx, fy, lx, ly);
-                    Bitmap dest = new Bitmap(r.Width, r.Height);
-                    Rectangle destRect = new Rectangle(0, 0, r.Width, r.Height);
-                    using (Graphics graphics = Graphics.FromImage(dest))
-                        graphics.DrawImage(bmp2, destRect, r, GraphicsUnit.Pixel);
-                }
-                catch
-                {
-                    Console.WriteLine("Exception trimming!");
-                }
-            }
-
-            return bmp2;
+            return lockBitmap2;
         }
 
-        public static Bitmap TrimBitmap(this Bitmap source)
+        public static Bitmap SafeCompareTrimmer(Bitmap ret, Rectangle r)
         {
-            Rectangle srcRect = default(Rectangle);
-            BitmapData data = null;
             try
             {
-                data = source.LockBits(new Rectangle(0, 0, source.Width, source.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                byte[] buffer = new byte[data.Height * data.Stride];
-                Marshal.Copy(data.Scan0, buffer, 0, buffer.Length);
-                int xMin = int.MaxValue;
-                int xMax = 0;
-                int yMin = int.MaxValue;
-                int yMax = 0;
-                for (int y = 0; y < data.Height; y++)
-                    for (int x = 0; x < data.Width; x++)
-                    {
-                        byte alpha = buffer[y * data.Stride + 4 * x + 3];
-                        if (alpha != 0)
-                        {
-                            if (x < xMin) xMin = x;
-                            if (x > xMax) xMax = x;
-                            if (y < yMin) yMin = y;
-                            if (y > yMax) yMax = y;
-                        }
-                    }
-
-                if (xMax < xMin || yMax < yMin)
-                {
-                    // Image is empty...
-                    return null;
-                }
-                srcRect = Rectangle.FromLTRB(xMin, yMin, xMax, yMax);
+                Bitmap dest = new Bitmap(r.Width, r.Height);
+                Rectangle destRect = new Rectangle(0, 0, r.Width, r.Height);
+                using (Graphics graphics = Graphics.FromImage(dest))
+                    graphics.DrawImage(ret, destRect, r, GraphicsUnit.Pixel);
             }
-            finally
+            catch
             {
-                if (data != null)
-                    source.UnlockBits(data);
+                Console.WriteLine("Exception trimming!");
             }
 
-            Bitmap dest = new Bitmap(srcRect.Width, srcRect.Height);
-            Rectangle destRect = new Rectangle(0, 0, srcRect.Width, srcRect.Height);
-            using (Graphics graphics = Graphics.FromImage(dest))
-                graphics.DrawImage(source, destRect, srcRect, GraphicsUnit.Pixel);
-
-            return dest;
+            return ret;
         }
 
         private static IEnumerable<Color> SolveVertical(Bitmap bmp2, int x, int y)
