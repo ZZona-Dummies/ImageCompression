@@ -33,7 +33,7 @@ namespace ImageCompress
             else
                 foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, 50, true);
+                        ProgramHandler.GetCompressedLength(x, 0, true);
 
             Console.Read();
         }
@@ -116,13 +116,29 @@ namespace ImageCompress
             IEnumerable<byte> firstArr = null;
 
             for (byte i = 0; i < bmp.Length; ++i)
+            {
+                sw.Start();
                 using (MemoryStream ms = bmp[i].GetCompressedBitmap(imageFormats, quality, true, i == 1 ? "_diff" : "").GetAwaiter().GetResult())
                 {
+                    Console.WriteLine();
+                    Console.WriteLine("GetCompressedBitmap: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
+
+                    sw.Stop();
+                    sw.Reset();
+                    sw.Start();
+
                     IEnumerable<byte> arr = ms.ZipWithMemoryStream(Image.FromStream(ms)).GetAwaiter().GetResult(),
                                       zipbytes = null,
                                       deflate = null,
                                       lzma = null,
                                       sharp = null;
+
+                    Console.WriteLine("ZipWithMemoryStream: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
+                    Console.WriteLine();
+
+                    sw.Stop();
+                    sw.Reset();
+
                     int diff = 0;
 
                     if (i == 1 && altConvert)
@@ -173,24 +189,19 @@ namespace ImageCompress
                             lzmacount = lzma.Count(),
                             sharpcount = sharp.Count();
 
-                        Console.WriteLine("   Diff     => Size: {0}; Loss {1}; Ellapsed: {2}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed));
-                        Console.WriteLine("   ZipBytes => Size: {0}; Loss {1}; Ellapsed: {2}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed));
-                        Console.WriteLine("   Deflate  => Size: {0}; Loss {1}; Ellapsed: {2}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed));
-                        Console.WriteLine("   LZMA     => Size: {0}; Loss {1}; Ellapsed: {2}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed));
-                        Console.WriteLine("   SHARP    => Size: {0}; Loss {1}; Ellapsed: {2}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed));
+                        Console.WriteLine("   Diff     => Size: {0}; Loss: {1}; Ellapsed: {2}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed));
+                        Console.WriteLine("   ZipBytes => Size: {0}; Loss: {1}; Ellapsed: {2}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed));
+                        Console.WriteLine("   Deflate  => Size: {0}; Loss: {1}; Ellapsed: {2}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed));
+                        Console.WriteLine("   LZMA     => Size: {0}; Loss: {1}; Ellapsed: {2}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed));
+                        Console.WriteLine("   SHARP    => Size: {0}; Loss: {1}; Ellapsed: {2}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed));
                         Console.WriteLine();
                     }
-                    /*Console.WriteLine("Compressed image {0} ({1}%){2}: {3}{4}",
-                        imageFormats.ToString(),
-                        quality,
-                        i > 0 ? string.Format(" (diff | compare) (loss {0}% | {1}%)", (100f - (float)c * 100 / lastC).ToString("F3"), altConvert ? ((100f - (float)carr.Count() * 100 / lastC).ToString("F3")) : "") : "",
-                        c,
-                        i > 0 ? string.Format(" | {0}", altConvert ? carr.Count() : 0) : ""); // arr.MultisetIntersect(firstArr).Count()*/
 
                     if (i == 0) lastC = c;
 
                     firstArr = arr;
                 }
+            }
         }
 
         private static string GetLossPercentage(float c)

@@ -11,7 +11,7 @@ namespace ImageCompress
     {
         private static int GetLevelFromQuality(long quality)
         {
-            return 10 - (int)Math.Ceiling((double)quality / 10);
+            return 10 - (int)Math.Ceiling((double)quality / 10) - (quality == 0 ? 1 : 0);
         }
 
         public static IEnumerable<byte> CreateToMemoryStream(this IEnumerable<byte> bytes, string zipEntryName, long quality, bool debug = false)
