@@ -137,63 +137,6 @@ namespace ImageCompress
                 return default(ImageFormats);
         }
 
-        public static IEnumerable<IEnumerable<ColorData>> CommonBitmap(Bitmap bmp1, Bitmap bmp2, float sim = 95)
-        { //La cuestion esq aqui se puede hacer secuencia y teniendo nada mas q la anchura se puede hacer el resto, creo... ???
-            int mwidth = Math.Max(bmp1.Width, bmp2.Width),
-                mheight = Math.Max(bmp1.Height, bmp2.Height);
-
-            Bitmap bigmap = bmp1.Width == mwidth ? bmp1 : bmp2,
-                   smallmap = bmp1.Width != mwidth ? bmp1 : bmp2;
-
-            //Color[,] compare = new Color[mwidth, mheight];
-
-            //Not neccesary ???
-            int lx = 0,
-                ly = 0,
-                fx = 0,
-                fy = 0,
-                c = 0;
-
-            // ??? Aqui lo que tengo q hacer es juntar los centros de ambos bitmaps
-            for (int x = 0; x < mwidth; ++x)
-            { // ??? De esto tengo ya 2 casos que no se que hacer muy bien
-                if (x > smallmap.Width) continue;
-                yield return VerticalMap(bmp1, bmp2, smallmap, bigmap, x, mheight);
-            }
-
-            //Bitmap ret = new Bitmap(lx - fx, ly - fy);
-
-            //for (int xx = 0; xx < lx - fx; ++xx)
-            //    for (int yy = 0; yy < ly - fy; ++yy)
-            //        ret.SetPixel(xx, yy, compare[xx, yy]);
-
-            //return ret;
-        }
-
-        private static IEnumerable<ColorData> VerticalMap(Bitmap bmp1, Bitmap bmp2, Bitmap smallmap, Bitmap bigmap, int x, int mheight) // ref int c, ref int fx, ref int fy, ref int lx, ref int ly)
-        {
-            for (int y = 0; y < mheight; ++y)
-            {
-                if (y > smallmap.Height) continue; //Aqui tengo q skipear
-
-                //if (ColorExtensions.CompareColors(bigmap.GetPixel(x, y), smallmap.GetPixel(x, y)) > sim)
-                if (bigmap.GetPixel(x, y) != smallmap.GetPixel(x, y))
-                {
-                    /*++c;
-                    if (c == 1)
-                    {
-                        fx = x;
-                        fy = y;
-                    }*/
-                    // Y en el small map hacer la cuenta
-                    //lx = x;
-                    //ly = y;
-                    //return SolveVertical(bmp2, x, y); // Y aqui segun si el bmp2 es el grande o el chico hay q obtener el pixel de una u otra forma
-                    yield return new ColorData(x, y, bmp2.GetPixel(x, y));
-                }
-            }
-        }
-
         public static Bitmap SafeCompare(Bitmap bmp1, Bitmap bmp2, bool trim)
         {
             if ((bmp1 == null) != (bmp2 == null)) throw new Exception("Null bitmap passed!");
@@ -201,6 +144,13 @@ namespace ImageCompress
 
             LockBitmap lockBitmap1 = new LockBitmap(bmp1),
                        lockBitmap2 = new LockBitmap(bmp2);
+
+            int c = 0,
+                fx = 0,
+                fy = 0,
+                lx = 0,
+                ly = 0;
+
             try
             {
                 lockBitmap1.LockBits();
@@ -209,7 +159,17 @@ namespace ImageCompress
                 for (int y = 0; y < lockBitmap1.Height; y++)
                     for (int x = 0; x < lockBitmap2.Width; x++)
                         if (lockBitmap1.GetPixel(x, y) == lockBitmap2.GetPixel(x, y))
+                        {
+                            ++c;
+                            if (c == 1)
+                            {
+                                fx = x;
+                                fy = y;
+                            }
                             lockBitmap2.SetPixel(x, y, Color.Transparent);
+                            lx = x;
+                            ly = y;
+                        }
             }
             finally
             {
@@ -217,35 +177,24 @@ namespace ImageCompress
                 lockBitmap2.UnlockBits();
             }
 
+            if (trim)
+            {
+                try
+                {
+                    Rectangle r = Rectangle.FromLTRB(fx, fy, lx, ly);
+                    Bitmap dest = new Bitmap(r.Width, r.Height);
+                    Rectangle destRect = new Rectangle(0, 0, r.Width, r.Height);
+                    using (Graphics graphics = Graphics.FromImage(dest))
+                        graphics.DrawImage(bmp2, destRect, r, GraphicsUnit.Pixel);
+                }
+                catch
+                {
+                    Console.WriteLine("Exception trimming!");
+                }
+            }
+
             return bmp2;
         }
-
-        /*public static Bitmap UnsafeCompare(Bitmap bitmapA, Bitmap bitmapB, int height)
-        {
-            if ((bitmapA == null) != (bitmapB == null)) throw new Exception("Null bitmap passed!");
-            if (bitmapA.Size != bitmapB.Size) throw new Exception("Different sizes between bitmap A & B!");
-
-            Rectangle bounds = new Rectangle(0, 0, bitmapA.Width, bitmapA.Height);
-            BitmapData bmpDataA = bitmapA.LockBits(bounds, ImageLockMode.ReadWrite, bitmapA.PixelFormat),
-                       bmpDataB = bitmapB.LockBits(bounds, ImageLockMode.ReadWrite, bitmapB.PixelFormat);
-
-            int npixels = Math.Abs(height * bmpDataA.Stride) / 4, i = 0;
-            unsafe
-            {
-                int* pPixelsA = (int*)bmpDataA.Scan0.ToPointer();
-                int* pPixelsB = (int*)bmpDataB.Scan0.ToPointer();
-
-                for (; i < npixels; ++i)
-                    if (pPixelsA[i] == pPixelsB[i])
-                        pPixelsB[i] = Color.Transparent.ToArgb();
-            }
-            bitmapA.UnlockBits(bmpDataA);
-            bitmapB.UnlockBits(bmpDataB);
-
-            Console.WriteLine("I: {0}; N: {1}", i, npixels);
-
-            return bitmapB;
-        }*/
 
         public static Bitmap TrimBitmap(this Bitmap source)
         {
