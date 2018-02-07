@@ -189,23 +189,69 @@ namespace ImageCompress
             return lockBitmap2;
         }
 
+        public static IEnumerable<byte> GetARGBBytes(this Bitmap bmp)
+        {
+            if (bmp == null) throw new Exception("Null bitmap passed!");
+
+            //Bitmap ret = bmp2.Clone(new Rectangle(0, 0, bmp2.Width, bmp2.Height), bmp2.PixelFormat); //We aren't modifying
+            LockBitmap lockBitmap = new LockBitmap(bmp);
+
+            try
+            {
+                lockBitmap.LockBits();
+
+                int cCount = 0, i = 0, w = lockBitmap.Width, h = lockBitmap.Height;
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        // Get color components count
+                        cCount = lockBitmap.Depth / 8;
+
+                        // Get start index of the specified pixel
+                        i = (y * lockBitmap.RowSize) + (x * cCount);
+
+                        //there we have a problem because we are losing position references
+                        if (cCount == 4) // For 32 bpp get Red, Green, Blue and Alpha
+                        {
+                            yield return lockBitmap.Pixels[i + 3]; //Alpha first
+                            yield return lockBitmap.Pixels[i];
+                            yield return lockBitmap.Pixels[i + 1];
+                            yield return lockBitmap.Pixels[i + 2];
+                        }
+                        else if (cCount == 3) // For 24 bpp get Red, Green and Blue
+                        {
+                            yield return lockBitmap.Pixels[i];
+                            yield return lockBitmap.Pixels[i + 1];
+                            yield return lockBitmap.Pixels[i + 2];
+                        }
+                        else if (cCount == 1)
+                            // For 8 bpp get color value (Red, Green and Blue values are the same)
+                            yield return lockBitmap.Pixels[i];
+                    }
+            }
+            finally
+            {
+                lockBitmap.UnlockBits();
+            }
+        }
+
         public static IEnumerable<byte> SafeCompareBytes(Bitmap bmp1, Bitmap bmp2)
         {
             if ((bmp1 == null) != (bmp2 == null)) throw new Exception("Null bitmap passed!");
             if (bmp1.Size != bmp2.Size) throw new Exception("Different sizes between bitmap A & B!");
 
-            Bitmap ret = bmp2.Clone(new Rectangle(0, 0, bmp2.Width, bmp2.Height), bmp2.PixelFormat);
+            //Bitmap ret = bmp2.Clone(new Rectangle(0, 0, bmp2.Width, bmp2.Height), bmp2.PixelFormat); //We aren't modifying
             LockBitmap lockBitmap1 = new LockBitmap(bmp1),
-                       lockBitmap2 = new LockBitmap(ret);
+                       lockBitmap2 = new LockBitmap(bmp2);
 
             try
             {
                 lockBitmap1.LockBits();
                 lockBitmap2.LockBits();
 
-                int cCount = 0, i = 0;
-                for (int y = 0; y < lockBitmap1.Height; y++)
-                    for (int x = 0; x < lockBitmap2.Width; x++)
+                int cCount = 0, i = 0, w = lockBitmap1.Width, h = lockBitmap1.Height;
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
                         if (lockBitmap1.GetPixel(x, y) != lockBitmap2.GetPixel(x, y))
                         {
                             // Get color components count
@@ -439,8 +485,8 @@ namespace ImageCompress
                 }
                 else
                 { //Realmente esto no hace ni falta
-                    //if (or.Length < newByte.Length) break;
-                    //offset.Add(big[i]);
+                  //if (or.Length < newByte.Length) break;
+                  //offset.Add(big[i]);
                     break;
                 }
             }

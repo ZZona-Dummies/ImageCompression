@@ -23,7 +23,7 @@ namespace ImageCompress
 
             ProgramHandler.GetRawLength();
 
-            bool onlyOne = true;
+            bool onlyOne = false;
 
             if (!onlyOne)
             {
@@ -35,7 +35,7 @@ namespace ImageCompress
             else
                 foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, 50, true);
+                        ProgramHandler.GetCompressedLength(x, 0, true);
 
             Console.Read();
         }
@@ -64,6 +64,7 @@ namespace ImageCompress
                             lzmaellapsed,
                             sharpellapsed,
                             lz4ellapsed,
+                            zstdellapsed,
                             LastEllapsed;
 
         private static long CurrentEllapsed
@@ -117,6 +118,7 @@ namespace ImageCompress
         public static void GetCompressedLength(ImageFormats imageFormats, long quality = 100L, bool altConvert = false)
         {
             IEnumerable<byte> firstArr = null;
+            byte[] lastzstd = null;
 
             for (byte i = 0; i < bmp.Length; ++i)
             {
@@ -135,7 +137,8 @@ namespace ImageCompress
                                       deflate = null,
                                       lzma = null,
                                       sharp = null,
-                                      lz4 = null;
+                                      lz4 = null,
+                                      zstd = null;
 
                     Console.WriteLine("ZipWithMemoryStream: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
                     Console.WriteLine();
@@ -186,12 +189,27 @@ namespace ImageCompress
 
                         byte[] orarr = or.ToArray();
 
-                        Console.WriteLine("\nEllapsed to arr time: {0} ms\n", GetEllapsedTime());
+                        Console.WriteLine("\nEllapsed LZ4 to arr time: {0} ms\n", GetEllapsedTime());
 
                         lz4 = LZ4Codec.Encode(orarr, 0, cc); //Not efficient
                         //LZ4Codec.Wrap(or.ToArray(), 0, or.Count()).AsEnumerable();
 
                         lz4ellapsed = GetEllapsedTime();
+
+                        byte[] zstdarr = or.ToArray();
+
+                        Console.WriteLine("Ellapsed ZSTD to arr time: {0} ms\n", GetEllapsedTime());
+
+                        byte[] zstddict = lastzstd == null ? bmp[0].GetARGBBytes().ToArray() : lastzstd;
+
+                        Console.WriteLine("Ellapsed ZSTD dict gen time: {0} ms\n", GetEllapsedTime());
+
+                        byte[] azstd = ZStdHelper.Compress(zstdarr, zstddict, 22);
+                        lastzstd = azstd;
+
+                        zstd = azstd;
+
+                        zstdellapsed = GetEllapsedTime();
 
                         sw.Stop();
 
@@ -213,7 +231,8 @@ namespace ImageCompress
                             deflatecount = deflate.Count(),
                             lzmacount = lzma.Count(),
                             sharpcount = sharp.Count(),
-                            lz4count = lz4.Count();
+                            lz4count = lz4.Count(),
+                            zstdcount = zstd.Count();
 
                         Console.WriteLine("   Diff     => Size: {0}; Loss: {1}; Ellapsed: {2}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed));
                         Console.WriteLine("   ZipBytes => Size: {0}; Loss: {1}; Ellapsed: {2}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed));
@@ -221,6 +240,7 @@ namespace ImageCompress
                         Console.WriteLine("   LZMA     => Size: {0}; Loss: {1}; Ellapsed: {2}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed));
                         Console.WriteLine("   SHARP    => Size: {0}; Loss: {1}; Ellapsed: {2}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed));
                         Console.WriteLine("   LZ4      => Size: {0}; Loss: {1}; Ellapsed: {2}", lz4count, GetLossPercentage(lz4count), GetEllapsedString(lz4ellapsed));
+                        Console.WriteLine("   ZSTD     => Size: {0}; Loss: {1}; Ellapsed: {2}", zstdcount, GetLossPercentage(zstdcount), GetEllapsedString(zstdellapsed));
                         Console.WriteLine();
                     }
 
