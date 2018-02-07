@@ -186,7 +186,7 @@ namespace ImageCompress
 
                         orCount = or.Count();
 
-                        Console.WriteLine("\nEllapsed count time: {0} ms", GetEllapsedTime());
+                        Console.WriteLine("Ellapsed count time: {0} ms", GetEllapsedTime());
 
                         byte[] orarr = or.ToArray();
 
@@ -213,6 +213,8 @@ namespace ImageCompress
                         zstdellapsed = GetEllapsedTime();
 
                         sw.Stop();
+                        sw.Reset();
+                        ResetEllapsedTime();
 
                         GC.Collect();
                     }
@@ -255,7 +257,7 @@ namespace ImageCompress
 
         private static string GetLossPercentage(float c)
         {
-            return (100f - c * 100 / lastC).ToString("F3") + "%";
+            return (c * 100f / lastC).ToString("F3") + "%";
         }
 
         private static void RegisterEllapsedTime()
@@ -266,6 +268,11 @@ namespace ImageCompress
         private static long GetEllapsedTime()
         {
             return Math.Abs(LastEllapsed - CurrentEllapsed);
+        }
+
+        private static void ResetEllapsedTime()
+        {
+            LastEllapsed = 0;
         }
 
         private static string GetEllapsedString(long s)
@@ -289,7 +296,7 @@ namespace ImageCompress
         {
             switch (mquality)
             {
-                case 11:
+                case 9:
                     return "SharpZip";
 
                 case 22:

@@ -20,7 +20,7 @@ namespace ImageCompress
             using (MemoryStream outputMemStream = new MemoryStream())
             using (ZipOutputStream zipStream = new ZipOutputStream(outputMemStream))
             {
-                int level = ProgramHandler.GetLevelFromQuality(quality, 11);
+                int level = ProgramHandler.GetLevelFromQuality(quality, 9);
                 zipStream.SetLevel(level); //0-9, 9 being the highest level of compression
 
                 ZipEntry newEntry = new ZipEntry(zipEntryName);
