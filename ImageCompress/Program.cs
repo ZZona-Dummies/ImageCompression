@@ -23,7 +23,7 @@ namespace ImageCompress
 
             ProgramHandler.GetRawLength();
 
-            bool onlyOne = true;
+            bool onlyOne = false;
 
             if (!onlyOne)
             {
@@ -240,13 +240,13 @@ namespace ImageCompress
                         Console.WriteLine();
 
                         Console.WriteLine("Compressed image {0} format with {1}% quality", imageFormats, quality);
-                        Console.WriteLine("   Diff     => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed), GetBytesRate(diffellapsed));
-                        Console.WriteLine("   ZipBytes => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed), GetBytesRate(zipbytesellapsed));
-                        Console.WriteLine("   Deflate  => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed), GetBytesRate(deflateellapsed));
-                        Console.WriteLine("   LZMA     => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed), GetBytesRate(lzmaellapsed));
-                        Console.WriteLine("   SHARP    => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed));
-                        Console.WriteLine("   LZ4      => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed));
-                        Console.WriteLine("   ZSTD     => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed));
+                        Console.WriteLine("   Diff     => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed), GetBytesRate(diffellapsed));
+                        Console.WriteLine("   ZipBytes => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed), GetBytesRate(zipbytesellapsed));
+                        Console.WriteLine("   Deflate  => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed), GetBytesRate(deflateellapsed));
+                        Console.WriteLine("   LZMA     => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed), GetBytesRate(lzmaellapsed));
+                        Console.WriteLine("   SHARP    => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed));
+                        Console.WriteLine("   LZ4      => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed));
+                        Console.WriteLine("   ZSTD     => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed));
                         Console.WriteLine();
                     }
                     else lastC = c;
