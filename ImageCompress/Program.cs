@@ -23,7 +23,7 @@ namespace ImageCompress
 
             ProgramHandler.GetRawLength();
 
-            bool onlyOne = false;
+            bool onlyOne = true;
 
             if (!onlyOne)
             {
@@ -58,20 +58,21 @@ namespace ImageCompress
         private static int lastC = 0, orCount;
         private static Stopwatch sw = new Stopwatch();
 
-        private static long diffellapsed,
+        private static float diffellapsed,
                             zipbytesellapsed,
                             deflateellapsed,
                             lzmaellapsed,
                             sharpellapsed,
                             lz4ellapsed,
-                            zstdellapsed,
-                            LastEllapsed;
+                            zstdellapsed;
+
+        private static long LastEllapsed;
 
         private static long CurrentEllapsed
         {
             get
             {
-                long cur = sw.ElapsedMilliseconds;
+                long cur = sw.ElapsedTicks;
                 LastEllapsed = cur;
                 return LastEllapsed;
             }
@@ -168,7 +169,7 @@ namespace ImageCompress
 
                         zipbytes = zr.GetAwaiter().GetResult();
 
-                        Console.WriteLine("Ellapsed ZipBytes GetAwaiter time: {0} ms\n", GetEllapsedTime());
+                        Console.WriteLine("Ellapsed ZipBytes GetAwaiter time: {0} ms\n", GetEllapsedTime(3));
 
                         deflate = or.DeflateCompress().GetAwaiter().GetResult();
 
@@ -178,7 +179,7 @@ namespace ImageCompress
 
                         lzmaellapsed = GetEllapsedTime();
 
-                        sharp = or.CreateToMemoryStream("sharp", quality);
+                        sharp = or.CreateToMemoryStream("sharp", quality, true);
 
                         sharpellapsed = GetEllapsedTime();
 
@@ -186,11 +187,11 @@ namespace ImageCompress
 
                         orCount = or.Count();
 
-                        Console.WriteLine("Ellapsed count time: {0} ms", GetEllapsedTime());
+                        Console.WriteLine("Ellapsed count time: {0} ms", GetEllapsedTime(3));
 
                         byte[] orarr = or.ToArray();
 
-                        Console.WriteLine("\nEllapsed LZ4 to arr time: {0} ms\n", GetEllapsedTime());
+                        Console.WriteLine("\nEllapsed LZ4 to arr time: {0} ms\n", GetEllapsedTime(3));
 
                         lz4 = LZ4Codec.Encode(orarr, 0, orCount); //Not efficient
                         //LZ4Codec.Wrap(or.ToArray(), 0, or.Count()).AsEnumerable();
@@ -199,13 +200,13 @@ namespace ImageCompress
 
                         byte[] zstdarr = or.ToArray();
 
-                        Console.WriteLine("Ellapsed ZSTD to arr time: {0} ms\n", GetEllapsedTime());
+                        Console.WriteLine("Ellapsed ZSTD to arr time: {0} ms\n", GetEllapsedTime(3));
 
                         byte[] zstddict = lastzstd == null ? bmp[0].GetARGBBytes().ToArray() : lastzstd;
 
-                        Console.WriteLine("Ellapsed ZSTD dict gen time: {0} ms\n", GetEllapsedTime());
+                        Console.WriteLine("Ellapsed ZSTD dict gen time: {0} ms\n", GetEllapsedTime(3));
 
-                        byte[] azstd = ZStdHelper.Compress(zstdarr, zstddict, GetLevelFromQuality(quality, 22));
+                        byte[] azstd = ZStdHelper.Compress(zstdarr, zstddict, GetLevelFromQuality(quality, 22, true));
                         lastzstd = azstd;
 
                         zstd = azstd;
@@ -262,12 +263,13 @@ namespace ImageCompress
 
         private static void RegisterEllapsedTime()
         {
-            LastEllapsed = sw.ElapsedMilliseconds;
+            LastEllapsed = sw.ElapsedTicks;
         }
 
-        private static long GetEllapsedTime()
+        private static float GetEllapsedTime(byte dec = 0)
         {
-            return Math.Abs(LastEllapsed - CurrentEllapsed);
+            float ret = Math.Abs(LastEllapsed - CurrentEllapsed) / (float)Stopwatch.Frequency;
+            return dec > 0 ? (float)Math.Round(ret, dec) : ret;
         }
 
         private static void ResetEllapsedTime()
@@ -275,14 +277,14 @@ namespace ImageCompress
             LastEllapsed = 0;
         }
 
-        private static string GetEllapsedString(long s)
+        private static string GetEllapsedString(float s)
         {
-            return (s / 1000f).ToString("F3") + "s";
+            return s.ToString("F3") + "s";
         }
 
-        private static string GetBytesRate(long el)
+        private static string GetBytesRate(float el)
         {
-            return string.Format("{0:#,##0.##} {1}", orCount / ((el / 1000f) * 1024f * 1024f), "MB/s");
+            return string.Format("{0:#,##0.##} {1}", orCount / (el * 1024f * 1024f), "MB/s");
         }
 
         public static int GetLevelFromQuality(long quality, byte maxquality, bool debug = false, byte minquality = 1)
