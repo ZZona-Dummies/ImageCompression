@@ -55,7 +55,7 @@ namespace ImageCompress
         private static PrintScreen printer = new PrintScreen();
         private static Bitmap[] bmp = new Bitmap[2];
 
-        private static int lastC = 0;
+        private static int lastC = 0, orCount;
         private static Stopwatch sw = new Stopwatch();
 
         private static long diffellapsed,
@@ -120,12 +120,13 @@ namespace ImageCompress
             IEnumerable<byte> firstArr = null;
             byte[] lastzstd = null;
 
+            Console.WriteLine();
+
             for (byte i = 0; i < bmp.Length; ++i)
             {
                 sw.Start();
                 using (MemoryStream ms = bmp[i].GetCompressedBitmap(imageFormats, quality, true, i == 1 ? "_diff" : "").GetAwaiter().GetResult())
                 {
-                    Console.WriteLine();
                     Console.WriteLine("GetCompressedBitmap: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
 
                     sw.Stop();
@@ -177,13 +178,13 @@ namespace ImageCompress
 
                         lzmaellapsed = GetEllapsedTime();
 
-                        sharp = or.CreateToMemoryStream("sharp", quality, true);
+                        sharp = or.CreateToMemoryStream("sharp", quality);
 
                         sharpellapsed = GetEllapsedTime();
 
                         //byte[] codeclz4 = null;
 
-                        int cc = or.Count();
+                        orCount = or.Count();
 
                         Console.WriteLine("\nEllapsed count time: {0} ms", GetEllapsedTime());
 
@@ -191,7 +192,7 @@ namespace ImageCompress
 
                         Console.WriteLine("\nEllapsed LZ4 to arr time: {0} ms\n", GetEllapsedTime());
 
-                        lz4 = LZ4Codec.Encode(orarr, 0, cc); //Not efficient
+                        lz4 = LZ4Codec.Encode(orarr, 0, orCount); //Not efficient
                         //LZ4Codec.Wrap(or.ToArray(), 0, or.Count()).AsEnumerable();
 
                         lz4ellapsed = GetEllapsedTime();
@@ -204,7 +205,7 @@ namespace ImageCompress
 
                         Console.WriteLine("Ellapsed ZSTD dict gen time: {0} ms\n", GetEllapsedTime());
 
-                        byte[] azstd = ZStdHelper.Compress(zstdarr, zstddict, 22);
+                        byte[] azstd = ZStdHelper.Compress(zstdarr, zstddict, GetLevelFromQuality(quality, 22));
                         lastzstd = azstd;
 
                         zstd = azstd;
@@ -223,9 +224,7 @@ namespace ImageCompress
 
                     int c = i == 0 ? arr.Count() : 0; // arr.GetArrDiff(firstArr).CountDict();
 
-                    if (i == 0)
-                        Console.WriteLine("Compressed image {0} format with {1}% quality", imageFormats, quality);
-                    else
+                    if (i == 1)
                     {
                         int zipbytescount = zipbytes.Count(),
                             deflatecount = deflate.Count(),
@@ -234,17 +233,20 @@ namespace ImageCompress
                             lz4count = lz4.Count(),
                             zstdcount = zstd.Count();
 
-                        Console.WriteLine("   Diff     => Size: {0}; Loss: {1}; Ellapsed: {2}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed));
-                        Console.WriteLine("   ZipBytes => Size: {0}; Loss: {1}; Ellapsed: {2}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed));
-                        Console.WriteLine("   Deflate  => Size: {0}; Loss: {1}; Ellapsed: {2}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed));
-                        Console.WriteLine("   LZMA     => Size: {0}; Loss: {1}; Ellapsed: {2}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed));
-                        Console.WriteLine("   SHARP    => Size: {0}; Loss: {1}; Ellapsed: {2}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed));
-                        Console.WriteLine("   LZ4      => Size: {0}; Loss: {1}; Ellapsed: {2}", lz4count, GetLossPercentage(lz4count), GetEllapsedString(lz4ellapsed));
-                        Console.WriteLine("   ZSTD     => Size: {0}; Loss: {1}; Ellapsed: {2}", zstdcount, GetLossPercentage(zstdcount), GetEllapsedString(zstdellapsed));
+                        Console.WriteLine("Or Length: " + orCount + " => " + (orCount / 1024f / 1024f).ToString("F3") + " MB");
+                        Console.WriteLine();
+
+                        Console.WriteLine("Compressed image {0} format with {1}% quality", imageFormats, quality);
+                        Console.WriteLine("   Diff     => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed), GetBytesRate(diffellapsed));
+                        Console.WriteLine("   ZipBytes => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed), GetBytesRate(zipbytesellapsed));
+                        Console.WriteLine("   Deflate  => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed), GetBytesRate(deflateellapsed));
+                        Console.WriteLine("   LZMA     => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed), GetBytesRate(lzmaellapsed));
+                        Console.WriteLine("   SHARP    => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed));
+                        Console.WriteLine("   LZ4      => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed));
+                        Console.WriteLine("   ZSTD     => Size: {0}; Loss: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed));
                         Console.WriteLine();
                     }
-
-                    if (i == 0) lastC = c;
+                    else lastC = c;
 
                     firstArr = arr;
                 }
@@ -269,6 +271,33 @@ namespace ImageCompress
         private static string GetEllapsedString(long s)
         {
             return (s / 1000f).ToString("F3") + "s";
+        }
+
+        private static string GetBytesRate(long el)
+        {
+            return string.Format("{0:#,##0.##} {1}", orCount / ((el / 1000f) * 1024f * 1024f), "MB/s");
+        }
+
+        public static int GetLevelFromQuality(long quality, byte maxquality, bool debug = false, byte minquality = 1)
+        {
+            int level = (int)Math.Round((quality / 100f) * (maxquality - minquality) + minquality);
+            if (debug) Console.WriteLine("{0} Level: " + level, GetLibFromMQuality(maxquality));
+            return level; //10 - (int)Math.Ceiling((double)quality / 10) - (quality == 0 ? 1 : 0);
+        }
+
+        private static string GetLibFromMQuality(int mquality)
+        {
+            switch (mquality)
+            {
+                case 11:
+                    return "SharpZip";
+
+                case 22:
+                    return "ZSTD";
+
+                default:
+                    return "Undefined";
+            }
         }
     }
 }

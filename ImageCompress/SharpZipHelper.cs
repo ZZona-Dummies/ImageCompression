@@ -9,24 +9,19 @@ namespace ImageCompress
 {
     public static class SharpZipHelper
     {
-        private static int GetLevelFromQuality(long quality)
+        public static IEnumerable<byte> CreateToMemoryStream(this IEnumerable<byte> bytes, string zipEntryName, long quality)
         {
-            return 10 - (int)Math.Ceiling((double)quality / 10) - (quality == 0 ? 1 : 0);
+            return CreateToMemoryStream(bytes.ToArray(), zipEntryName, quality);
         }
 
-        public static IEnumerable<byte> CreateToMemoryStream(this IEnumerable<byte> bytes, string zipEntryName, long quality, bool debug = false)
-        {
-            return CreateToMemoryStream(bytes.ToArray(), zipEntryName, quality, debug);
-        }
-
-        public static byte[] CreateToMemoryStream(this byte[] bytes, string zipEntryName, long quality, bool debug = false)
+        public static byte[] CreateToMemoryStream(this byte[] bytes, string zipEntryName, long quality)
         {
             using (MemoryStream memStreamIn = new MemoryStream(bytes))
             using (MemoryStream outputMemStream = new MemoryStream())
             using (ZipOutputStream zipStream = new ZipOutputStream(outputMemStream))
             {
-                if (debug) Console.WriteLine("SharpZip Level: " + GetLevelFromQuality(quality));
-                zipStream.SetLevel(GetLevelFromQuality(quality)); //0-9, 9 being the highest level of compression
+                int level = ProgramHandler.GetLevelFromQuality(quality, 11);
+                zipStream.SetLevel(level); //0-9, 9 being the highest level of compression
 
                 ZipEntry newEntry = new ZipEntry(zipEntryName);
                 newEntry.DateTime = DateTime.Now;
