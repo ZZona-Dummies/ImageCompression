@@ -2,6 +2,8 @@
 
 Compressed image JPG (original size: 5427111)
 
+Ratio is relative to JPG (by quality)
+
 | Percentage | Diff     |               | ZipBytes   |            | Deflate    |           | LZMA       |           | SHARP       |           | LZ4        |               | ZSTD       |             |
 |------------|----------|---------------|------------|------------|------------|-----------|------------|-----------|-------------|-----------|------------|---------------|------------|-------------|
 |            | Ratio    |          Rate |      Ratio |       Rate |      Ratio |      Rate |      Ratio |      Rate |       Ratio |      Rate |      Ratio |          Rate |      Ratio |        Rate |
@@ -26,3 +28,5 @@ Compressed image JPG (original size: 5427111)
 |  10%       | 99,426 % | 2.986,58 MB/s |  218,224 % | 9,9   MB/s |  218,189 % | 4,97 MB/s |  107,483 % | 0,98 MB/s |  556,831  % | 8,11 MB/s |  427,362 % | 2.258,41 MB/s |  187,926 % | 145,76 MB/s |
 |   5%       | 99,059 % | 2.975,18 MB/s |  362,721 % | 9,74  MB/s |  362,663 % | 4,9  MB/s |  178,652 % | 0,99 MB/s |  925,537  % | 8,08 MB/s |  710,339 % | 2.358,87 MB/s |  335,430 % | 269,83 MB/s |
 |   0%       | 98,313 % | 4.711,16 MB/s |  477,408 % | 10,09 MB/s |  477,332 % | 4,98 MB/s |  235,139 % | 0,98 MB/s |  1218,178 % | 7,77 MB/s |  934,938 % | 1.262,73 MB/s |  441,517 % | 305,54 MB/s |
+
+**Inspired in:** https://github.com/inikep/lzbench/blob/master/README.md

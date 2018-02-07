@@ -68,6 +68,14 @@ namespace ImageCompress
 
         private static long LastEllapsed;
 
+        private static Dictionary<string, float> ratios = new Dictionary<string, float>();
+
+        private static List<Tuple<byte, int, float, float, float, float>> graphData = new List<Tuple<byte, int, float, float, float, float>>(); //I will implement this later
+
+        private const byte algoritms = 6;
+        private static string[] algCaptions = new string[algoritms] { "Diff", "ZipBytes", "Deflate", "LZMA", "SharpZipLib", "LZ4" };
+        private static int algCount = 0;
+
         private static long CurrentEllapsed
         {
             get
@@ -236,18 +244,25 @@ namespace ImageCompress
                             lz4count = lz4.Count(),
                             zstdcount = zstd.Count();
 
-                        Console.WriteLine("Or Length: " + orCount + " => " + (orCount / 1024f / 1024f).ToString("F3") + " MB");
-                        Console.WriteLine("LastC Length: " + lastC + " => " + (lastC / 1024f / 1024f).ToString("F3") + " MB");
+                        float jpgRatio = lastC * 100f / orCount;
+                        Console.WriteLine("PNG Length: " + orCount + " => " + (orCount / 1024f / 1024f).ToString("F3") + " MB");
+                        Console.WriteLine("JPG Length: " + lastC + " => " + (lastC / 1024f / 1024f).ToString("F3") + " MB");
+                        Console.WriteLine("JPG Working Ratio: " + jpgRatio.ToString("F3") + " %");
                         Console.WriteLine();
 
                         Console.WriteLine("Compressed image {0} format with {1}% quality", imageFormats, quality);
-                        Console.WriteLine("   Diff     => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", diff, GetLossPercentage(diff), GetEllapsedString(diffellapsed), GetBytesRate(diffellapsed));
-                        Console.WriteLine("   ZipBytes => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zipbytescount, GetLossPercentage(zipbytescount), GetEllapsedString(zipbytesellapsed), GetBytesRate(zipbytesellapsed));
-                        Console.WriteLine("   Deflate  => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", deflatecount, GetLossPercentage(deflatecount), GetEllapsedString(deflateellapsed), GetBytesRate(deflateellapsed));
-                        Console.WriteLine("   LZMA     => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lzmacount, GetLossPercentage(lzmacount), GetEllapsedString(lzmaellapsed), GetBytesRate(lzmaellapsed));
-                        Console.WriteLine("   SHARP    => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed));
-                        Console.WriteLine("   LZ4      => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed));
-                        Console.WriteLine("   ZSTD     => Size: {0}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed));
+                        Console.WriteLine("   Diff     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", diff, GetLossPercentage(diff, orCount), GetEllapsedString(diffellapsed), GetBytesRate(diffellapsed), lastC);
+                        Console.WriteLine("   ZipBytes => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zipbytescount, GetLossPercentage(zipbytescount, orCount), GetEllapsedString(zipbytesellapsed), GetBytesRate(zipbytesellapsed), lastC);
+                        Console.WriteLine("   Deflate  => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", deflatecount, GetLossPercentage(deflatecount, orCount), GetEllapsedString(deflateellapsed), GetBytesRate(deflateellapsed), lastC);
+                        Console.WriteLine("   LZMA     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lzmacount, GetLossPercentage(lzmacount, orCount), GetEllapsedString(lzmaellapsed), GetBytesRate(lzmaellapsed), lastC);
+                        Console.WriteLine("   SHARP    => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount, orCount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed), lastC);
+                        Console.WriteLine("   LZ4      => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count, orCount), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed), lastC);
+                        Console.WriteLine("   ZSTD     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount, orCount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed), lastC);
+                        Console.WriteLine();
+                        IEnumerable<KeyValuePair<string, float>> passed = ratios.Where(x => x.Value < jpgRatio),
+                                                                 npassed = ratios.Where(x => x.Value >= jpgRatio);
+                        Console.WriteLine("Passed algoritms: {0}", passed.Count() > 0 ? string.Join(", ", passed.Select(x => string.Format("{0} ({1}%)", x.Key, x.Value.ToString("F3")))) : "None");
+                        Console.WriteLine("Non-Passed algoritms: {0}", npassed.Count() > 0 ? string.Join(", ", npassed.Select(x => string.Format("{0} ({1}%)", x.Key, x.Value.ToString("F3")))) : "None");
                         Console.WriteLine();
                     }
                     else lastC = c;
@@ -257,8 +272,21 @@ namespace ImageCompress
             }
         }
 
-        private static string GetLossPercentage(float c)
+        private static string GetLossPercentage(float c, float or)
         {
+            if (algCount == 6)
+            {
+                ratios.Clear();
+                algCount = 0;
+            }
+
+            float val = (c * 100f / or);
+            ratios.Add(algCaptions[algCount], val);
+
+            //Console.WriteLine("Adding: {0} ({1} % {2} = {3}) Val: {4}", algCaptions[algCount % algoritms], algCount, algoritms, algCount % algoritms, val);
+
+            ++algCount;
+
             return (c * 100f / lastC).ToString("F3") + "%";
         }
 
