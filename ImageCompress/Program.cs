@@ -263,7 +263,6 @@ namespace ImageCompress
                                                                  npassed = ratios.Where(x => x.Value >= jpgRatio);
                         Console.WriteLine("Passed algoritms: {0}", passed.Count() > 0 ? string.Join(", ", passed.Select(x => string.Format("{0} ({1}%)", x.Key, x.Value.ToString("F3")))) : "None");
                         Console.WriteLine("Non-Passed algoritms: {0}", npassed.Count() > 0 ? string.Join(", ", npassed.Select(x => string.Format("{0} ({1}%)", x.Key, x.Value.ToString("F3")))) : "None");
-                        Console.WriteLine();
                     }
                     else lastC = c;
 
