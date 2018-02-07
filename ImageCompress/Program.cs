@@ -237,6 +237,7 @@ namespace ImageCompress
                             zstdcount = zstd.Count();
 
                         Console.WriteLine("Or Length: " + orCount + " => " + (orCount / 1024f / 1024f).ToString("F3") + " MB");
+                        Console.WriteLine("LastC Length: " + lastC + " => " + (lastC / 1024f / 1024f).ToString("F3") + " MB");
                         Console.WriteLine();
 
                         Console.WriteLine("Compressed image {0} format with {1}% quality", imageFormats, quality);
