@@ -23,7 +23,7 @@ namespace ImageCompress
 
             ProgramHandler.GetRawLength();
 
-            bool onlyOne = false;
+            bool onlyOne = true;
 
             if (!onlyOne)
             {
@@ -35,7 +35,7 @@ namespace ImageCompress
             else
                 foreach (ImageFormats x in Enum.GetValues(typeof(ImageFormats)))
                     if (status.HasFlag(x))
-                        ProgramHandler.GetCompressedLength(x, 0, true);
+                        ProgramHandler.GetCompressedLength(x, 50, true);
 
             Console.Read();
         }
@@ -64,7 +64,10 @@ namespace ImageCompress
                             lzmaellapsed,
                             sharpellapsed,
                             lz4ellapsed,
-                            zstdellapsed;
+                            zstdellapsed,
+                            compareellapsed,
+                            //commonellapsed,
+                            mapperellapsed;
 
         private static long LastEllapsed;
 
@@ -72,8 +75,8 @@ namespace ImageCompress
 
         private static List<Tuple<byte, int, float, float, float, float>> graphData = new List<Tuple<byte, int, float, float, float, float>>(); //I will implement this later
 
-        private const byte algoritms = 6;
-        private static string[] algCaptions = new string[algoritms] { "Diff", "ZipBytes", "Deflate", "LZMA", "SharpZipLib", "LZ4" };
+        private const byte algoritms = 9;
+        private static string[] algCaptions = new string[algoritms] { "Diff", "ZipBytes", "Deflate", "LZMA", "SharpZipLib", "LZ4", "Compare", "Common", "Mapper" };
         private static int algCount = 0;
 
         private static long CurrentEllapsed
@@ -148,7 +151,10 @@ namespace ImageCompress
                                       lzma = null,
                                       sharp = null,
                                       lz4 = null,
-                                      zstd = null;
+                                      zstd = null,
+                                      compare = null,
+                                      common = null,
+                                      mapper = null;
 
                     Console.WriteLine("ZipWithMemoryStream: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
                     Console.WriteLine();
@@ -221,6 +227,14 @@ namespace ImageCompress
 
                         zstdellapsed = GetEllapsedTime();
 
+                        compare = ImageExtensions.SafeCompareBytes(bmp[0], bmp[1]); //mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
+
+                        compareellapsed = GetEllapsedTime();
+
+                        mapper = ImageExtensions.DataMapper(bmp[0], bmp[1]); //carr = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).Zip().GetAwaiter().GetResult();
+
+                        mapperellapsed = GetEllapsedTime();
+
                         sw.Stop();
                         sw.Reset();
                         ResetEllapsedTime();
@@ -242,7 +256,10 @@ namespace ImageCompress
                             lzmacount = lzma.Count(),
                             sharpcount = sharp.Count(),
                             lz4count = lz4.Count(),
-                            zstdcount = zstd.Count();
+                            zstdcount = zstd.Count(),
+                            comparecount = compare.Count(),
+                            //commoncount = common.Count(),
+                            mappercount = mapper.Count();
 
                         float jpgRatio = lastC * 100f / orCount;
                         Console.WriteLine("PNG Length: " + orCount + " => " + (orCount / 1024f / 1024f).ToString("F3") + " MB");
@@ -258,6 +275,9 @@ namespace ImageCompress
                         Console.WriteLine("   SHARP    => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount, orCount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed), lastC);
                         Console.WriteLine("   LZ4      => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count, orCount), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed), lastC);
                         Console.WriteLine("   ZSTD     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount, orCount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed), lastC);
+                        Console.WriteLine("   Compare  => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", comparecount, GetLossPercentage(comparecount, orCount), GetEllapsedString(compareellapsed), GetBytesRate(compareellapsed), lastC);
+                        //Console.WriteLine("   Common   => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", commoncount, GetLossPercentage(commoncount, orCount), GetEllapsedString(commonellapsed), GetBytesRate(commonellapsed), lastC);
+                        Console.WriteLine("   Mapper   => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", mappercount, GetLossPercentage(mappercount, orCount), GetEllapsedString(mapperellapsed), GetBytesRate(mapperellapsed), lastC);
                         Console.WriteLine();
                         IEnumerable<KeyValuePair<string, float>> passed = ratios.Where(x => x.Value < jpgRatio),
                                                                  npassed = ratios.Where(x => x.Value >= jpgRatio);
