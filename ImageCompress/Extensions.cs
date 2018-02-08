@@ -209,11 +209,13 @@ namespace ImageCompress
                     h = lockBitmap1.Height;
 
                 byte rpt = 0;
+                int lastColor = -1;
 
                 for (int y = 0; y < h; y++)
                     for (int x = 0; x < w; x++)
                     {
-                        if (lockBitmap1.GetPixel(x, y) != lockBitmap2.GetPixel(x, y))
+                        byte r = lockBitmap2.Pixels[i], g = lockBitmap2.Pixels[i + 1], b = lockBitmap2.Pixels[i + 2];
+                        if ()
                         {
                             // Get color components count
                             cCount = lockBitmap2.Depth / 8;
@@ -250,6 +252,8 @@ namespace ImageCompress
                                 rpt = 0;
                             }
                         }
+
+                        lastColor = lockBitmap1.GetPixel(x, y) != lockBitmap2.GetPixel(x, y) ? : -1;
                     }
             }
             finally
