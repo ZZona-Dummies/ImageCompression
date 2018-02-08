@@ -1,4 +1,5 @@
-﻿using LZ4;
+﻿using ImageCompress.Properties;
+using LZ4;
 using SevenZip.Compression.LZMA;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ namespace ImageCompress
     {
         private static void Main(string[] args)
         {
-            ProgramHandler.CreateImages();
+            ProgramHandler.CreateImages(true);
 
             ImageFormats status = ImageFormats.JPG; //ImageFormats.PNG | ImageFormats.GIF |
 
@@ -89,24 +90,32 @@ namespace ImageCompress
             }
         }
 
-        public static void CreateImages()
+        public static void CreateImages(bool useResources = false)
         {
-            IntPtr handle = GetConsoleWindow();
+            if (!useResources)
+            {
+                IntPtr handle = GetConsoleWindow();
 
-            bmp[0] = printer.CaptureScreenToBitmap();
+                bmp[0] = printer.CaptureScreenToBitmap();
 
-            Thread.Sleep(100);
+                Thread.Sleep(100);
 
-            //Aqui tenemos q minimizar la ventana y tomar otra captura y hacer un diff con offset y decir el tamaño q nos hemos ahorrado y volver a maximizar
-            ShowWindow(handle, SW_HIDE);
+                //Aqui tenemos q minimizar la ventana y tomar otra captura y hacer un diff con offset y decir el tamaño q nos hemos ahorrado y volver a maximizar
+                ShowWindow(handle, SW_HIDE);
 
-            Thread.Sleep(200);
+                Thread.Sleep(200);
 
-            bmp[1] = printer.CaptureScreenToBitmap();
+                bmp[1] = printer.CaptureScreenToBitmap();
 
-            Thread.Sleep(100);
+                Thread.Sleep(100);
 
-            ShowWindow(handle, SW_SHOW);
+                ShowWindow(handle, SW_SHOW);
+            }
+            else
+            {
+                bmp[0] = Resources.cap1;
+                bmp[1] = Resources.cap2;
+            }
         }
 
         public static void GetRawLength(bool dump = false) //Aqui tengo q hacer las imagenes dentro, tomas las capturas cambiando la visibilidad de la imagen
@@ -153,7 +162,7 @@ namespace ImageCompress
                                       lz4 = null,
                                       zstd = null,
                                       compare = null,
-                                      common = null,
+                                      //common = null,
                                       mapper = null;
 
                     Console.WriteLine("ZipWithMemoryStream: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
