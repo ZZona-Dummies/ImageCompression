@@ -209,51 +209,75 @@ namespace ImageCompress
                     h = lockBitmap1.Height;
 
                 byte rpt = 0;
-                int lastColor = -1;
+                //int lastColor = -1;
+                byte[] lastColor = new byte[3];
+                bool changedColor = false;
+                Color bmp1Color = default(Color);
 
                 for (int y = 0; y < h; y++)
                     for (int x = 0; x < w; x++)
                     {
-                        byte r = lockBitmap2.Pixels[i], g = lockBitmap2.Pixels[i + 1], b = lockBitmap2.Pixels[i + 2];
-                        if ()
+                        byte r = lockBitmap2.Pixels[i], g = lockBitmap2.Pixels[i + 1], b = lockBitmap2.Pixels[i + 2]; //Nos tenemos asegurar que este es el formato
+                        if (changedColor)
                         {
+                            //En teoria no necesario
+                            //if (ColorExtensions.CompareColors(r, lastColor[0], g, lastColor[1], b, lastColor[2]) < 90) //Si la similitud es menor al 90% entonces ya hay que hacer algo...
+                            //{
                             // Get color components count
                             cCount = lockBitmap2.Depth / 8;
 
                             // Get start index of the specified pixel
                             i = (y * lockBitmap2.RowSize) + (x * cCount);
 
-                            yield return 1;
+                            yield return rpt;
                             if (cCount == 3 || cCount == 4) // For 24 bpp get Red, Green and Blue
                             {
-                                yield return lockBitmap2.Pixels[i];
-                                yield return lockBitmap2.Pixels[i + 1];
-                                yield return lockBitmap2.Pixels[i + 2];
+                                yield return r;
+                                yield return g;
+                                yield return b;
                             }
                             else if (cCount == 1)
                                 // For 8 bpp get color value (Red, Green and Blue values are the same)
-                                yield return lockBitmap2.Pixels[i];
+                                yield return r;
+
+                            rpt = 0;
+                            /*}
+                            else
+                            {
+                                ++rpt;
+                                if (rpt == byte.MaxValue)
+                                {
+                                    yield return 255;
+                                    if (cCount == 3 || cCount == 4) // For 24 bpp get Red, Green and Blue
+                                    {
+                                        yield return lockBitmap2.Pixels[i];
+                                        yield return lockBitmap2.Pixels[i + 1];
+                                        yield return lockBitmap2.Pixels[i + 2];
+                                    }
+                                    else if (cCount == 1)
+                                        // For 8 bpp get color value (Red, Green and Blue values are the same)
+                                        yield return lockBitmap2.Pixels[i];
+                                    rpt = 0;
+                                }
+                            }*/
+                            changedColor = false;
+                        }
+
+                        bmp1Color = lockBitmap1.GetPixel(x, y); //Comparando bitmaps
+                        if (ColorExtensions.CompareColors(r, bmp1Color.R, g, bmp1Color.G, b, bmp1Color.B) < 90) //Si la similitud es menor al 90% entonces ya hay que hacer algo...
+                        {
+                            lastColor[0] = r;
+                            lastColor[1] = g;
+                            lastColor[2] = b;
+
+                            changedColor = true;
                         }
                         else
                         {
                             ++rpt;
-                            if (rpt == byte.MaxValue)
-                            {
-                                yield return 255;
-                                if (cCount == 3 || cCount == 4) // For 24 bpp get Red, Green and Blue
-                                {
-                                    yield return lockBitmap2.Pixels[i];
-                                    yield return lockBitmap2.Pixels[i + 1];
-                                    yield return lockBitmap2.Pixels[i + 2];
-                                }
-                                else if (cCount == 1)
-                                    // For 8 bpp get color value (Red, Green and Blue values are the same)
-                                    yield return lockBitmap2.Pixels[i];
-                                rpt = 0;
-                            }
+                            if (rpt == 255)
+                                changedColor = true;
                         }
-
-                        lastColor = lockBitmap1.GetPixel(x, y) != lockBitmap2.GetPixel(x, y) ? : -1;
                     }
             }
             finally
@@ -727,13 +751,24 @@ namespace ImageCompress
 
     public static class ColorExtensions
     {
-        public static int CompareColors(Color a, Color b)
+        public static double CompareColors(Color a, Color b)
         {
-            return 100 * (int)(
+            return 100.0 * (
                 1.0 - (
                     Math.Abs(a.R - b.R) +
                     Math.Abs(a.G - b.G) +
                     Math.Abs(a.B - b.B)
+                ) / (256.0 * 3)
+            );
+        }
+
+        public static double CompareColors(byte r1, byte g1, byte b1, byte r2, byte g2, byte b2)
+        {
+            return 100.0 * (
+                1.0 - (
+                    Math.Abs(r1 - r2) +
+                    Math.Abs(g1 - g2) +
+                    Math.Abs(b1 - b2)
                 ) / (256.0 * 3)
             );
         }

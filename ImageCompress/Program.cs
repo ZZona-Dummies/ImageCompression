@@ -68,7 +68,8 @@ namespace ImageCompress
                             zstdellapsed,
                             compareellapsed,
                             //commonellapsed,
-                            mapperellapsed;
+                            mapperellapsed,
+                            mapperjpgellapsed;
 
         private static long LastEllapsed;
 
@@ -79,6 +80,8 @@ namespace ImageCompress
         private const byte algoritms = 9;
         private static string[] algCaptions = new string[algoritms] { "Diff", "ZipBytes", "Deflate", "LZMA", "SharpZipLib", "LZ4", "Compare", "Common", "Mapper" };
         private static int algCount = 0;
+
+        private static IEnumerable<byte> pngMapper, bmpMapper;
 
         private static long CurrentEllapsed
         {
@@ -118,22 +121,46 @@ namespace ImageCompress
             }
         }
 
-        public static void GetRawLength(bool dump = false) //Aqui tengo q hacer las imagenes dentro, tomas las capturas cambiando la visibilidad de la imagen
+        //bool dump = false
+        public static void GetRawLength() //Aqui tengo q hacer las imagenes dentro, tomas las capturas cambiando la visibilidad de la imagen
         { //Maybe is better to have a different file for this
-            byte[][] arr = new byte[2][];
+            byte w = 0;
+            byte[][] arr = new byte[4][];
+            Bitmap[] maps = new Bitmap[4];
+
+            for (byte i = 0; i < bmp.Length; ++i)
+                using (MemoryStream ms = bmp[i].ToMemoryStream(ImageFormat.Bmp, 100).GetAwaiter().GetResult())
+                { //Este no lo voy a dumpear en HDD xD
+                    maps[w] = (Bitmap)Image.FromStream(ms);
+                    ++w;
+                    arr[i] = ms.GetBuffer();
+                }
 
             for (byte i = 0; i < bmp.Length; ++i)
                 using (MemoryStream ms = bmp[i].ToMemoryStream(ImageFormat.Png, 100, true, "_raw").GetAwaiter().GetResult())
-                    arr[i] = ms.GetBuffer();
+                {
+                    maps[w] = (Bitmap)Image.FromStream(ms);
+                    arr[w] = ms.GetBuffer();
+                    ++w;
+                }
 
-            Console.WriteLine("Uncompressed image: {0} | {1}", arr[0].Length, arr[1].Length);
+            Console.WriteLine("Uncompressed image (BMP): {0} | {1}", arr[0].Length, arr[1].Length);
+            Console.WriteLine("Uncompressed image (PNG): {0} | {1}", arr[2].Length, arr[3].Length);
 
-            Dictionary<int, List<byte>> diff = arr[0].GetArrDiff(arr[1]);
+            //Dictionary<int, List<byte>> diff = arr[0].GetArrDiff(arr[1]);
+            //Aqui voy a implementar un runlength encoding y pasarlo a un ienumerable para sustituir valores
+            // O bien, pasarle 4 bitmaps y hacerle un mapper y ver que devuelve
 
-            if (dump)
-                File.WriteAllText(Path.Combine(PathExtensions.AssemblyPath, "raw_diff.txt"), diff.DumpDict(true));
+            //if (dump)
+            //    File.WriteAllText(Path.Combine(PathExtensions.AssemblyPath, "raw_diff.txt"), diff.DumpDict(true));
 
-            Console.WriteLine("Uncompressed image (diff): " + diff.CountDict());
+            bmpMapper = ImageExtensions.DataMapper(maps[0], maps[1]);
+            pngMapper = ImageExtensions.DataMapper(maps[2], maps[3]);
+
+            Console.WriteLine("Uncompressed image (mapper) (BMP): " + bmpMapper.Count());
+            Console.WriteLine("Uncompressed image (mapper) (PNG): " + pngMapper.Count());
+
+            GC.Collect();
         }
 
         public static void GetCompressedLength(ImageFormats imageFormats, long quality = 100L, bool altConvert = false)
@@ -161,9 +188,10 @@ namespace ImageCompress
                                       sharp = null,
                                       lz4 = null,
                                       zstd = null,
-                                      compare = null,
+                                      //compare = null,
                                       //common = null,
-                                      mapper = null;
+                                      mapper = null,
+                                      mapperjpg = null;
 
                     Console.WriteLine("ZipWithMemoryStream: {0} s (Loop #{1})", (sw.ElapsedMilliseconds / 1000f).ToString("F3"), i);
                     Console.WriteLine();
@@ -178,7 +206,8 @@ namespace ImageCompress
                         bool jpg = false;
                         //usingmem = false; //Implementar usingmem para usar lo de más abajo
 
-                        IEnumerable<byte> or = ImageExtensions.SafeCompareBytes(jpg ? (Bitmap)Image.FromStream(ms) : bmp[0], jpg ? (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult()) : bmp[1]);
+                        //Esto no hace nada, es incluso mejor manejar directamente un array del uncrompressed.
+                        //IEnumerable<byte> or = ImageExtensions.SafeCompareBytes(jpg ? (Bitmap)Image.FromStream(ms) : bmp[0], jpg ? (Bitmap)Image.FromStream(bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult()) : bmp[1]);
 
                         sw.Start();
 
@@ -186,7 +215,7 @@ namespace ImageCompress
 
                         diffellapsed = GetEllapsedTime();
 
-                        Task<IEnumerable<byte>> zr = or.ZipBytes();
+                        Task<IEnumerable<byte>> zr = pngMapper.ZipBytes();
 
                         zipbytesellapsed = GetEllapsedTime();
 
@@ -194,34 +223,32 @@ namespace ImageCompress
 
                         Console.WriteLine("Ellapsed ZipBytes GetAwaiter time: {0} ms\n", GetEllapsedTime(3));
 
-                        deflate = or.DeflateCompress().GetAwaiter().GetResult();
+                        deflate = pngMapper.DeflateCompress().GetAwaiter().GetResult();
 
                         deflateellapsed = GetEllapsedTime();
 
-                        lzma = or.Compress();
+                        lzma = pngMapper.Compress();
 
                         lzmaellapsed = GetEllapsedTime();
 
-                        sharp = or.CreateToMemoryStream("sharp", quality, true);
+                        sharp = pngMapper.CreateToMemoryStream("sharp", quality, true);
 
                         sharpellapsed = GetEllapsedTime();
 
                         //byte[] codeclz4 = null;
 
-                        orCount = or.Count();
+                        orCount = pngMapper.Count();
 
-                        Console.WriteLine("Ellapsed count time: {0} ms", GetEllapsedTime(3));
+                        Console.WriteLine("Ellapsed PNGMapper count time: {0} ms", GetEllapsedTime(3));
 
-                        byte[] orarr = or.ToArray();
+                        byte[] orarr = pngMapper.ToArray();
 
-                        Console.WriteLine("\nEllapsed LZ4 to arr time: {0} ms\n", GetEllapsedTime(3));
+                        Console.WriteLine("\nEllapsed PNGMapper to arr time: {0} ms\n", GetEllapsedTime(3));
 
                         lz4 = LZ4Codec.Encode(orarr, 0, orCount); //Not efficient
                         //LZ4Codec.Wrap(or.ToArray(), 0, or.Count()).AsEnumerable();
 
                         lz4ellapsed = GetEllapsedTime();
-
-                        byte[] zstdarr = or.ToArray();
 
                         Console.WriteLine("Ellapsed ZSTD to arr time: {0} ms\n", GetEllapsedTime(3));
 
@@ -229,20 +256,32 @@ namespace ImageCompress
 
                         Console.WriteLine("Ellapsed ZSTD dict gen time: {0} ms\n", GetEllapsedTime(3));
 
-                        byte[] azstd = ZStdHelper.Compress(zstdarr, zstddict, GetLevelFromQuality(quality, 22, true));
+                        byte[] azstd = ZStdHelper.Compress(orarr, zstddict, GetLevelFromQuality(quality, 22, true));
                         lastzstd = azstd;
 
                         zstd = azstd;
 
                         zstdellapsed = GetEllapsedTime();
 
-                        compare = ImageExtensions.SafeCompareBytes(bmp[0], bmp[1]); //mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
+                        //compare = ImageExtensions.SafeCompareBytes(bmp[0], bmp[1]); //mss.ZipWithMemoryStream(Image.FromStream(mss)).GetAwaiter().GetResult();
 
-                        compareellapsed = GetEllapsedTime();
+                        //compareellapsed = GetEllapsedTime();
 
                         mapper = ImageExtensions.DataMapper(bmp[0], bmp[1]); //carr = ImageExtensions.CommonBitmap(bmp[0], bmp[1]).Zip().GetAwaiter().GetResult();
 
                         mapperellapsed = GetEllapsedTime();
+
+                        Bitmap bmpjpg1 = null, bmpjpg2 = null;
+
+                        using (MemoryStream ms1 = bmp[0].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult())
+                            bmpjpg1 = (Bitmap)Image.FromStream(ms1);
+
+                        using (MemoryStream ms2 = bmp[1].GetCompressedBitmap(imageFormats, quality).GetAwaiter().GetResult())
+                            bmpjpg2 = (Bitmap)Image.FromStream(ms2);
+
+                        mapperjpg = ImageExtensions.DataMapper(bmpjpg1, bmpjpg2);
+
+                        mapperjpgellapsed = GetEllapsedTime();
 
                         sw.Stop();
                         sw.Reset();
@@ -266,9 +305,10 @@ namespace ImageCompress
                             sharpcount = sharp.Count(),
                             lz4count = lz4.Count(),
                             zstdcount = zstd.Count(),
-                            comparecount = compare.Count(),
+                            //comparecount = compare.Count(),
                             //commoncount = common.Count(),
-                            mappercount = mapper.Count();
+                            mappercount = mapper.Count(),
+                            mapperjpgcount = mapperjpg.Count();
 
                         float jpgRatio = lastC * 100f / orCount;
                         Console.WriteLine("PNG Length: " + orCount + " => " + (orCount / 1024f / 1024f).ToString("F3") + " MB");
@@ -277,16 +317,17 @@ namespace ImageCompress
                         Console.WriteLine();
 
                         Console.WriteLine("Compressed image {0} format with {1}% quality", imageFormats, quality);
-                        Console.WriteLine("   Diff     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", diff, GetLossPercentage(diff, orCount), GetEllapsedString(diffellapsed), GetBytesRate(diffellapsed), lastC);
-                        Console.WriteLine("   ZipBytes => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zipbytescount, GetLossPercentage(zipbytescount, orCount), GetEllapsedString(zipbytesellapsed), GetBytesRate(zipbytesellapsed), lastC);
-                        Console.WriteLine("   Deflate  => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", deflatecount, GetLossPercentage(deflatecount, orCount), GetEllapsedString(deflateellapsed), GetBytesRate(deflateellapsed), lastC);
-                        Console.WriteLine("   LZMA     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lzmacount, GetLossPercentage(lzmacount, orCount), GetEllapsedString(lzmaellapsed), GetBytesRate(lzmaellapsed), lastC);
-                        Console.WriteLine("   SHARP    => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount, orCount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed), lastC);
-                        Console.WriteLine("   LZ4      => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count, orCount), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed), lastC);
-                        Console.WriteLine("   ZSTD     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount, orCount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed), lastC);
-                        Console.WriteLine("   Compare  => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", comparecount, GetLossPercentage(comparecount, orCount), GetEllapsedString(compareellapsed), GetBytesRate(compareellapsed), lastC);
+                        Console.WriteLine("   Diff        => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", diff, GetLossPercentage(diff, orCount), GetEllapsedString(diffellapsed), GetBytesRate(diffellapsed), lastC);
+                        Console.WriteLine("   ZipBytes    => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zipbytescount, GetLossPercentage(zipbytescount, orCount), GetEllapsedString(zipbytesellapsed), GetBytesRate(zipbytesellapsed), lastC);
+                        Console.WriteLine("   Deflate     => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", deflatecount, GetLossPercentage(deflatecount, orCount), GetEllapsedString(deflateellapsed), GetBytesRate(deflateellapsed), lastC);
+                        Console.WriteLine("   LZMA        => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lzmacount, GetLossPercentage(lzmacount, orCount), GetEllapsedString(lzmaellapsed), GetBytesRate(lzmaellapsed), lastC);
+                        Console.WriteLine("   SHARP       => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", sharpcount, GetLossPercentage(sharpcount, orCount), GetEllapsedString(sharpellapsed), GetBytesRate(sharpellapsed), lastC);
+                        Console.WriteLine("   LZ4         => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", lz4count, GetLossPercentage(lz4count, orCount), GetEllapsedString(lz4ellapsed), GetBytesRate(lz4ellapsed), lastC);
+                        Console.WriteLine("   ZSTD        => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", zstdcount, GetLossPercentage(zstdcount, orCount), GetEllapsedString(zstdellapsed), GetBytesRate(zstdellapsed), lastC);
+                        //Console.WriteLine("   Compare  => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", comparecount, GetLossPercentage(comparecount, orCount), GetEllapsedString(compareellapsed), GetBytesRate(compareellapsed), lastC);
                         //Console.WriteLine("   Common   => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", commoncount, GetLossPercentage(commoncount, orCount), GetEllapsedString(commonellapsed), GetBytesRate(commonellapsed), lastC);
-                        Console.WriteLine("   Mapper   => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", mappercount, GetLossPercentage(mappercount, orCount), GetEllapsedString(mapperellapsed), GetBytesRate(mapperellapsed), lastC);
+                        Console.WriteLine("   Mapper       => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", mappercount, GetLossPercentage(mappercount, orCount), GetEllapsedString(mapperellapsed), GetBytesRate(mapperellapsed), lastC);
+                        Console.WriteLine("   Mapper + JPG => Size: {0} / {4}; Ratio: {1}; Ellapsed: {2}; Transfer Rate: {3}", mapperjpgcount, GetLossPercentage(mapperjpgcount, orCount), GetEllapsedString(mapperjpgellapsed), GetBytesRate(mapperjpgellapsed), lastC);
                         Console.WriteLine();
                         IEnumerable<KeyValuePair<string, float>> passed = ratios.Where(x => x.Value < jpgRatio),
                                                                  npassed = ratios.Where(x => x.Value >= jpgRatio);

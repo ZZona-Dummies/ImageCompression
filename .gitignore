@@ -7,4 +7,4 @@
 *.ico
 *.txt
 *.xml
-!/imgs/
+!/imgs/*
